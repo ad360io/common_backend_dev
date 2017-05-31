@@ -8,16 +8,20 @@ from django.contrib.auth.decorators import login_required
 
 def list(request):
 	"""
-	list of all adspaces
+	List of all adspaces.
+	User should be able to filter/search.
 	"""
-	# TODO: FILTER BY PREFERENCES
 	latest_ad_list = Adspace.objects.all()
 	context = {'latest_ad_list': latest_ad_list}
+	# TODO: FILTER BY PREFERENCES
 	return render(request, 'list.html', context)
 
 
 def ad_detail(request, ad_id):
-	# adspace details
+	"""
+	Adspace details.
+	Static without actual functionality.
+	"""
 	try:
 		ad = Adspace.objects.get(pk=ad_id)
 	except Adspace.DoesNotExist:
@@ -25,7 +29,9 @@ def ad_detail(request, ad_id):
 	return render(request, 'ad_detail.html', {'ad': ad})
 
 def ad_list(request, web_id):
-	# list of ads on website
+	"""
+	List of adspaces on a website.
+	"""
 	try:
 		site = Website.objects.get(pk=web_id)
 		ad_list = Adspace.objects.filter(website=site)
@@ -36,7 +42,9 @@ def ad_list(request, web_id):
 
 @login_required
 def agent_details(request):
-	# user profile details
+	"""
+	Edit agent details/user profile.
+	"""
 	if request.method == 'POST':
 		form = qchain.forms.DetailForm(request.POST)
 		if form.is_valid():
@@ -51,7 +59,10 @@ def agent_details(request):
 
 @login_required
 def website_list(request):
-	# websites owned by user
+	"""
+	List of websites owned by user.
+	User can add or delete websites.
+	"""
 	try:
 		my_website_list = Website.objects.filter(user=request.user) # get websites owned by user
 		context = {'my_website_list': my_website_list}
@@ -67,17 +78,22 @@ def website_list(request):
 	else:
 		form = WebsiteForm()
 	context['form'] = form
+	# TODO: WEBSITE DELETION
 	return render(request, 'website_list.html', context)
 
 
 @login_required
 def create_ad(request):
+	"""
+	Create a new adspace.
+	"""
 	if request.method == 'POST':
 		form = AdspaceForm(request.POST) 
 		if form.is_valid():
 			new_ad = form.save(commit=False)
 			new_ad.user = request.user
 			new_ad.save()
+			# increment website adcount
 			current_website = form.cleaned_data["website"]
 			current_website.adcount += 1
 			current_website.save()
