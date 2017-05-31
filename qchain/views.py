@@ -7,7 +7,9 @@ from django.template import loader
 from django.contrib.auth.decorators import login_required
 
 def list(request):
-	# list of all adspaces
+	"""
+	list of all adspaces
+	"""
 	# TODO: FILTER BY PREFERENCES
 	latest_ad_list = Adspace.objects.all()
 	context = {'latest_ad_list': latest_ad_list}
