@@ -1,0 +1,22 @@
+{% extends "site_base.html" %}
+
+{% load i18n %}
+
+{% block head_title %}pinax-project-account{% endblock %}
+
+{% block body_class %}home{% endblock %}
+
+{% block body_base %}
+    <section>
+        <div class="container">
+            <h2 class="text-center">{% blocktrans %}List of adspaces{% endblocktrans %}</h2>
+            <ul>
+            {% for ad in ad_list %}
+            <li>{{ ad.name }}</li>
+            <li>{{ ad.height }}</li>
+            <li>{{ ad.width }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+    </section>
+{% endblock %}

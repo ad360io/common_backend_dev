@@ -1,0 +1,31 @@
+{% extends "site_base.html" %}
+
+{% load i18n %}
+
+{% block head_title %}pinax-project-account{% endblock %}
+
+{% block body_class %}home{% endblock %}
+
+{% block body_base %}
+    <section>
+        <div class="container">
+            <h2 class="text-center">{% blocktrans %}My websites{% endblocktrans %}</h2>
+            <form action="/websites/" method="post">
+            {% csrf_token %}
+            {{ form }}
+            <input type="submit" value="Add" />
+            </form>
+            {% if my_website_list %}
+            <ul>
+            {% for site in my_website_list %}
+            <li>{{ site.name }}</li>
+            <li><a href="/sites/{{ site.id }}/">{{ site.link }}</a></li>
+            {% endfor %}
+            </ul>
+            {% else %}
+                <p>No websites yet.</p>
+            {% endif %}
+            <li><a href="/create/"><i class="fa fa-plus"></i> Add adspace</a></li>
+        </div>
+    </section>
+{% endblock %}

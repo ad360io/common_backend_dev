@@ -1,0 +1,24 @@
+{% extends "site_base.html" %}
+
+{% load i18n %}
+
+{% block head_title %}pinax-project-account{% endblock %}
+
+{% block body_class %}home{% endblock %}
+
+{% block body_base %}
+    <section>
+        <div class="container">
+            <h2 class="text-center">{% blocktrans %}Adspace listings{% endblocktrans %}</h2>
+            {% if latest_ad_list %}
+            <ul>
+            {% for ad in latest_ad_list %}
+            <li><a href="/list/{{ ad.id }}/">{{ ad.website.name }}</a></li>
+            {% endfor %}
+            </ul>
+            {% else %}
+                <p>No ads are available.</p>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}
