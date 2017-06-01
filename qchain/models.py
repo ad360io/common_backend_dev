@@ -22,7 +22,7 @@ class Website(models.Model):
 	user = models.ForeignKey(User, on_delete=models.CASCADE) 
 	link = models.URLField()
 	name = models.CharField(max_length=20)
-	description = models.TextField(max_length=200)
+	description = models.CharField(max_length=200)
 	# NOTE: USE CONSTANT VARIABLES TO REPRESENT TYPE STRINGS AS RECOMMENDED
 	POLITICS = 'POLITI' 
 	NONPOLITICS = 'NONPOL' 
@@ -33,8 +33,7 @@ class Website(models.Model):
 	category = models.CharField(
 		max_length=6,
 		choices=CATEGORY_CHOICES)
-	adcount = models.IntegerField(default=0) 
-	# NOTE: IT IS MUCH EASIER TO STORE COUNTS THAN COUNTING
+	adcount = models.IntegerField(default=0) # NOTE: IT IS MUCH EASIER TO STORE COUNTS THAN COUNTING
 
 	def __str__(self):           
 		return self.name
@@ -57,10 +56,11 @@ class Adspace(models.Model):
 	"""
 	user = models.ForeignKey(User, on_delete=models.CASCADE)
 	website = models.ForeignKey(Website, on_delete=models.CASCADE)
+	name = models.CharField(max_length=20)
 	height = models.IntegerField()
 	width = models.IntegerField()
-	start_time = models.DateTimeField(null=True, blank=True)
-	end_time = models.DateTimeField(null=True, blank=True)
+	#start_time = models.DateTimeField(null=True, blank=True)
+	#end_time = models.DateTimeField(null=True, blank=True)
 	BANNER = 'BANNER'
 	NONBANNER = 'NONBAN'
 	ADTYPE_CHOICES = (
@@ -70,9 +70,14 @@ class Adspace(models.Model):
 	adtype = models.CharField(
 		max_length=6,
 		choices=ADTYPE_CHOICES)
+	# HACK: SAVE STATS AS STRINGS THEN PARSE IN VIEW
+	views = models.CharField(max_length=400, null=True, blank=True)
+	clicks = models.CharField(max_length=400, null=True, blank=True)
+	total_views = models.IntegerField(default=0) # used for filtering
+	total_clicks = models.IntegerField(default=0)
 
 	def __str__(self):             
-		return self.website.name
+		return self.name
 
 class AdspaceForm(ModelForm):
 	"""
@@ -81,4 +86,10 @@ class AdspaceForm(ModelForm):
 	"""
 	class Meta:
 		model = Adspace
-		exclude = ['user']
+		exclude = ['user', 'views', 'clicks', 'total_views', 'total_clicks']
+
+class Contract(models.Model):
+	"""
+	Class for contract.
+	Some serious design thoughts are needed here.
+	"""

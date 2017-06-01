@@ -2,30 +2,73 @@
 
 {% load i18n %}
 
+{% load static %}
+
 {% block head_title %}pinax-project-account{% endblock %}
 
 {% block body_class %}home{% endblock %}
 
 {% block body_base %}
-    <section>
-        <div class="container">
-            <h2 class="text-center">{% blocktrans %}My websites{% endblocktrans %}</h2>
-            <form action="/websites/" method="post">
-            {% csrf_token %}
-            {{ form }}
-            <input type="submit" value="Add" />
-            </form>
-            {% if my_website_list %}
-            <ul>
-            {% for site in my_website_list %}
-            <li>{{ site.name }}</li>
-            <li><a href="/sites/{{ site.id }}/">{{ site.link }}</a></li>
-            {% endfor %}
-            </ul>
-            {% else %}
-                <p>No websites yet.</p>
-            {% endif %}
-            <li><a href="/create/"><i class="fa fa-plus"></i> Add adspace</a></li>
+<section>
+    <div class="container">
+        <div class="col-md-10">
+            <div class="panel panel-success">
+              <div class="panel-heading"><h4><i class="fa fa-signal"></i> Analytics</h4></div>
+              <div class="panel-body">
+                {% if views_ts %}
+                <li>{{ views_ts }}</li>
+                {% endif %}
+                <img src="{% static "trend.png" %}" class="img-fluid" style="height: 200px; width: 400px">
+                <img src="{% static "revenue.png" %}" class="img-fluid" style="height: 200px; width: 400px">
+            </div>
         </div>
-    </section>
+    </div>
+
+    <div class="col-md-10">
+
+        <div class="panel panel-primary">
+          <div class="panel-heading"><h4><i class="fa fa-list"></i> Content</h4></div>
+          {% if my_website_list %}
+          <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Link</th>
+                    <th>Keywords</th>
+                    <th>Category</th>
+                    <th>Ads</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for site in my_website_list %}
+                <tr>
+                  <td>{{ site.name }}</td>
+                  <td>{{ site.link }}</td>
+                  <td>{{ site.descripton }}</td>
+                  <td>{{ site.category }}</td>
+                  <td>{{ site.adcount }}</td>
+              </tr>
+              {% endfor %}
+          </tbody>
+      </table>
+      {% else %}
+      <p>No websites yet.</p>
+      {% endif %}  
+      <h4>Add new website</h4>
+      <form action="" method="post">
+        {% csrf_token %}
+        {{ web_form }}
+        <input type="submit" value="Add" />
+    </form>
+    <h4>Add new adspace</h4>
+    <form action="" method="post">
+        {% csrf_token %}
+        {{ ad_form }}
+        <input type="submit" value="Add" />
+    </form>
+</div>
+</div>
+
+</div>
+</section>
 {% endblock %}

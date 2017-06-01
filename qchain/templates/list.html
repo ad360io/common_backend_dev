@@ -7,18 +7,33 @@
 {% block body_class %}home{% endblock %}
 
 {% block body_base %}
-    <section>
-        <div class="container">
-            <h2 class="text-center">{% blocktrans %}Adspace listings{% endblocktrans %}</h2>
-            {% if latest_ad_list %}
-            <ul>
-            {% for ad in latest_ad_list %}
-            <li><a href="/list/{{ ad.id }}/">{{ ad.website.name }}</a></li>
-            {% endfor %}
-            </ul>
-            {% else %}
-                <p>No ads are available.</p>
-            {% endif %}
-        </div>
-    </section>
+<section>
+    <div class="container">
+        <h2 class="text-center">{% blocktrans %}Marketplace adspace listings{% endblocktrans %}</h2>
+        {% if latest_ad_list %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Website</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ad in latest_ad_list %}
+                <tr>
+                  <td><a href="/list/{{ ad.id }}/">{{ ad.name }}</a></td>
+                  <td>{{ ad.website.name }}</td>
+                  <td>{{ ad.adtype }}</td>
+                  <td>{{ ad.website.category }}</td>
+              </tr>
+              {% endfor %}
+          </tbody>
+      </table>
+      {% else %}
+      <p>No ads are available.</p>
+      {% endif %}
+  </div>
+</section>
 {% endblock %}

@@ -10,9 +10,14 @@
     <section>
         <div class="container">
             <h2 class="text-center">{% blocktrans %}Adspace details{% endblocktrans %}</h2>
+            <h4>Adspace name</h4>
             <li>{{ ad.name }}</li>
-            <li>{{ ad.height }}</li>
-            <li>{{ ad.width }}</li>
+            <h4>Adspace type</h4>
+            <li>{{ ad.adtype }}</li>
+            <h4>Dimensions</h4>
+            <li>{{ ad.height }} {{ ad.width }}</li>
+            <h4>View time series</h4>
+            <li>{{ ad.views }}</li>
         </div>
     </section>
 {% endblock %}

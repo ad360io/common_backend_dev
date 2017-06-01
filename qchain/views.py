@@ -63,21 +63,32 @@ def website_list(request):
 	List of websites owned by user.
 	User can add or delete websites.
 	"""
+	context = {}
 	try:
 		my_website_list = Website.objects.filter(user=request.user) # get websites owned by user
-		context = {'my_website_list': my_website_list}
+		context['my_website_list'] = my_website_list
 	except Website.DoesNotExist:
-		context = {'my_website_list': False}
+		context['my_website_list'] = False
+	try:
+		my_ad_list = Adspace.objects.filter(user=request.user) # get adspaces owned by user
+		views_ts = '' # NOTE: PSEUDO TIME SERIES
+		for e in my_ad_list:
+			views_ts += e.views
+		context['views_ts'] = views_ts # TODO: D3 VISUALIZATION
+	except Adspace.DoesNotExist:
+		context['views_ts'] = False
 	# add a new website
 	if request.method == 'POST':
-		form = WebsiteForm(request.POST) 
+		web_form = WebsiteForm(request.POST) # NOTE: TWO FORMS DON'T WORK AT THE SAME TIME
 		if form.is_valid():
-			new_website = form.save(commit=False)
+			new_website = web_form.save(commit=False)
 			new_website.user = request.user
 			new_website.save()
 	else:
-		form = WebsiteForm()
-	context['form'] = form
+		web_form = WebsiteForm()
+		ad_form = AdspaceForm()
+	context['web_form'] = web_form
+	context['ad_form'] = ad_form
 	# TODO: WEBSITE DELETION
 	return render(request, 'website_list.html', context)
 
