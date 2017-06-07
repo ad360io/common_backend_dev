@@ -6,6 +6,7 @@ class Agent(models.Model):
 	"""
 	Class for user profile. 
 	A different class name may be more informative.
+	An agent is both publisher and advertiser.
 	"""
 	user = models.OneToOneField(User, on_delete=models.CASCADE)
 	birthdate = models.DateField(null=True)
@@ -33,7 +34,6 @@ class Website(models.Model):
 	category = models.CharField(
 		max_length=6,
 		choices=CATEGORY_CHOICES)
-	adcount = models.IntegerField(default=0) # NOTE: IT IS MUCH EASIER TO STORE COUNTS THAN COUNTING
 
 	def __str__(self):           
 		return self.name
@@ -71,10 +71,27 @@ class Adspace(models.Model):
 		max_length=6,
 		choices=ADTYPE_CHOICES)
 	# HACK: SAVE STATS AS STRINGS THEN PARSE IN VIEW
-	views = models.CharField(max_length=400, null=True, blank=True)
-	clicks = models.CharField(max_length=400, null=True, blank=True)
-	total_views = models.IntegerField(default=0) # used for filtering
-	total_clicks = models.IntegerField(default=0)
+	stats1 = models.CharField(max_length=400, null=True, blank=True) # earnings time series
+	stats2 = models.CharField(max_length=400, null=True, blank=True) # clicks time series
+	stats3 = models.CharField(max_length=400, null=True, blank=True) # impressions time series
+	stats4 = models.CharField(max_length=400, null=True, blank=True)
+	stats5 = models.CharField(max_length=400, null=True, blank=True)
+	stats6 = models.CharField(max_length=400, null=True, blank=True)
+	stats7 = models.CharField(max_length=400, null=True, blank=True)
+	stats8 = models.CharField(max_length=400, null=True, blank=True)
+	stats9 = models.CharField(max_length=400, null=True, blank=True)
+	stats10 = models.CharField(max_length=400, null=True, blank=True)
+	# HACK: SUMMARY STATS FOR CONVENIENCE
+	summary1 = models.IntegerField(default=0) 
+	summary2 = models.IntegerField(default=0) 
+	summary3 = models.IntegerField(default=0) 
+	summary4 = models.IntegerField(default=0) 
+	summary5 = models.IntegerField(default=0) 
+	summary6 = models.IntegerField(default=0) 
+	summary7 = models.IntegerField(default=0) 
+	summary8 = models.IntegerField(default=0) 
+	summary9 = models.IntegerField(default=0) 
+	summary10 = models.IntegerField(default=0) 
 
 	def __str__(self):             
 		return self.name
@@ -88,8 +105,75 @@ class AdspaceForm(ModelForm):
 		model = Adspace
 		exclude = ['user', 'views', 'clicks', 'total_views', 'total_clicks']
 
+class Campaign(models.Model):
+	"""
+	Class for campaign.
+	Campaign is the adspace equivalent for advertiser.
+	"""
+	user = models.ForeignKey(User, on_delete=models.CASCADE)
+	name = models.CharField(max_length=20)
+	description = models.CharField(max_length=200)
+	category = models.CharField(max_length=200)
+	# HACK: SAVE STATS AS STRINGS THEN PARSE IN VIEW
+	stats1 = models.CharField(max_length=400, null=True, blank=True)
+	stats2 = models.CharField(max_length=400, null=True, blank=True)
+	stats3 = models.CharField(max_length=400, null=True, blank=True)
+	stats4 = models.CharField(max_length=400, null=True, blank=True)
+	stats5 = models.CharField(max_length=400, null=True, blank=True)
+	stats6 = models.CharField(max_length=400, null=True, blank=True)
+	stats7 = models.CharField(max_length=400, null=True, blank=True)
+	stats8 = models.CharField(max_length=400, null=True, blank=True)
+	stats9 = models.CharField(max_length=400, null=True, blank=True)
+	stats10 = models.CharField(max_length=400, null=True, blank=True)
+	# HACK: SUMMARY STATS FOR CONVENIENCE
+	summary1 = models.IntegerField(default=0) 
+	summary2 = models.IntegerField(default=0) 
+	summary3 = models.IntegerField(default=0) 
+	summary4 = models.IntegerField(default=0) 
+	summary5 = models.IntegerField(default=0) 
+	summary6 = models.IntegerField(default=0) 
+	summary7 = models.IntegerField(default=0) 
+	summary8 = models.IntegerField(default=0) 
+	summary9 = models.IntegerField(default=0) 
+	summary10 = models.IntegerField(default=0) 
+
+	def __str__(self):             
+		return self.name
+
 class Contract(models.Model):
 	"""
 	Class for contract.
-	Some serious design thoughts are needed here.
+	This is not the actual Ethereum/NEM smart contract.
 	"""
+	advertiser = models.ForeignKey(User, on_delete=models.CASCADE)
+	adspace = models.ForeignKey(Adspace, on_delete=models.CASCADE)
+	name = models.CharField(max_length=20)
+	start_time = models.DateTimeField(null=True, blank=True)
+	end_time = models.DateTimeField(null=True, blank=True)
+	active = models.BooleanField()
+	currency = models.CharField(max_length=20)
+	# HACK: SAVE STATS AS STRINGS THEN PARSE IN VIEW
+	stats1 = models.CharField(max_length=400, null=True, blank=True) # earnings time series
+	stats2 = models.CharField(max_length=400, null=True, blank=True)
+	stats3 = models.CharField(max_length=400, null=True, blank=True)
+	stats4 = models.CharField(max_length=400, null=True, blank=True)
+	stats5 = models.CharField(max_length=400, null=True, blank=True)
+	stats6 = models.CharField(max_length=400, null=True, blank=True)
+	stats7 = models.CharField(max_length=400, null=True, blank=True)
+	stats8 = models.CharField(max_length=400, null=True, blank=True)
+	stats9 = models.CharField(max_length=400, null=True, blank=True)
+	stats10 = models.CharField(max_length=400, null=True, blank=True)
+	# HACK: SUMMARY STATS FOR CONVENIENCE
+	summary1 = models.IntegerField(default=0) 
+	summary2 = models.IntegerField(default=0) 
+	summary3 = models.IntegerField(default=0) 
+	summary4 = models.IntegerField(default=0) 
+	summary5 = models.IntegerField(default=0) 
+	summary6 = models.IntegerField(default=0) 
+	summary7 = models.IntegerField(default=0) 
+	summary8 = models.IntegerField(default=0) 
+	summary9 = models.IntegerField(default=0) 
+	summary10 = models.IntegerField(default=0) 
+
+	def __str__(self):             
+		return self.name
