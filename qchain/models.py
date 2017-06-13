@@ -4,8 +4,7 @@ from django.contrib.auth.models import User
 
 class Agent(models.Model):
 	"""
-	Class for user profile. 
-	A different class name may be more informative.
+	Class for agent. 
 	An agent is both publisher and advertiser.
 	"""
 	user = models.OneToOneField(User, on_delete=models.CASCADE)

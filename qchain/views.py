@@ -8,7 +8,7 @@ from django.template import loader
 from django.contrib.auth.decorators import login_required
 
 
-# CREATE A BUNCH OF STUFF
+# DEPRECATED
 @login_required
 def godlike(request):
 	user = request.user
@@ -53,7 +53,7 @@ def ad_detail(request, ad_id):
 	return render(request, 'ad_detail.html', {'ad': ad})
 
 
-# TEMPORARILY DEPRECATED
+# DEPRECATED
 def ad_list(request, web_id):
 	"""
 	List of adspaces on a website.
@@ -84,7 +84,6 @@ def agent_details(request):
 	return render(request, 'details.html', {'form': form})
 
 
-# SHORT TERM GOAL
 @login_required
 def pub_dashboard(request):
 	"""
@@ -216,7 +215,7 @@ def pub_dashboard(request):
 	return render(request, 'pub_dashboard.html', context)
 
 
-############################ INSTANCE CREATION & MANAGEMENT FOR WEBSITE, ADSPACE, CAMPAIGN, CONTRACT
+############################ INSTANCE CREATION & MANAGEMENT FOR WEBSITE, ADSPACE, CAMPAIGN, CONTRACT ############################
 
 # LOW PRIORITY
 @login_required
