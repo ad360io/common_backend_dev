@@ -5,7 +5,7 @@ import datetime
 import random
 import unicodedata
 from django.shortcuts import render
-from .models import Adspace, Website, WebsiteForm, AdspaceForm, Contract,\
+from .models import Adspace, Website, AdspaceForm, Contract,\
     RequestForAdv, AD_TYPES, GENRE_CHOICES
 from django.http import HttpResponse
 from django.template import loader

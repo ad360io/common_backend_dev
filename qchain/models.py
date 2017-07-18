@@ -6,11 +6,16 @@ from django.core.validators import MinValueValidator
 
 AD_TYPES = (('btw', 'ban_top_wide'), ('br', 'ban_right'),
             ('popup', 'popup'), ('bl', 'ban_left'))
+AD_TYPES_rev = (('ban_top_wide', 'btw'),('ban_right', 'br'),('popup', 'popup'),
+         ('ban_left', 'bl'))
 GENRE_CHOICES = (('Gaming', 'Gaming'), ('Movies', 'Movies'),
                  ('Auto', 'Auto'), ('Porn', 'Porn'))
 MAX_DIGITS = 12
 DECIMAL_PLACES = 8
-
+NAME_LENGTH = 30
+SHORT_TXT_LENGTH = 140
+CHOICE_LENGTH = 15
+URL_LENGTH = 200
 
 class Agent(models.Model):
     """
@@ -19,7 +24,7 @@ class Agent(models.Model):
     """
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     birthdate = models.DateField(null=True)
-
+    bio = models.CharField(max_length=SHORT_TXT_LENGTH, null=True)
     def __str__(self):
         return self.user.username
 
@@ -30,84 +35,32 @@ class Website(models.Model):
     Each website is owned by a user but a user may have multiple websites.
     """
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    link = models.URLField()
-    name = models.CharField(max_length=20)
-    description = models.CharField(max_length=200)
+    link = models.URLField(max_length=URL_LENGTH)
+    name = models.CharField(max_length=NAME_LENGTH)
+    description = models.CharField(max_length=SHORT_TXT_LENGTH)
     # NOTE: USE CONSTANT VARIABLES TO REPRESENT TYPE STRINGS AS RECOMMENDED
-    POLITICS = 'POLITI'
-    NONPOLITICS = 'NONPOL'
-    CATEGORY_CHOICES = ((POLITICS, 'Politics'), (NONPOLITICS, 'Not Politics'),)
-    category = models.CharField(
-        max_length=6,
-        choices=CATEGORY_CHOICES)
+    genres = models.CharField(
+        max_length=CHOICE_LENGTH,
+        choices=GENRE_CHOICES)
 
     def __str__(self):
         return self.name
-
-
-class WebsiteForm(ModelForm):
-    """
-    Form based on website model.
-    User should be set separately in view using request.user.
-    Adcount should also be modified in the backend rather than by user.
-    """
-    class Meta:
-        model = Website
-        fields = ['link', 'name', 'description', 'category']
-
 
 class Adspace(models.Model):
     """
-    Class for adspace.
-    Adspace is the essential commodity and belongs to a website and its owner.
+    Class for adspaces.
+    An adspace is a location on the website and belongs to a website and its owner.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    publisher = models.ForeignKey(User, on_delete=models.CASCADE)
     website = models.ForeignKey(Website, on_delete=models.CASCADE)
-    name = models.CharField(max_length=20)
+    name = models.CharField(max_length=NAME_LENGTH, verbose_name="Adspace Name")
+    adtype = models.CharField(max_length=CHOICE_LENGTH, choices=AD_TYPES_rev,
+                              verbose_name="Ad Type")
+    genre = models.CharField(max_length=CHOICE_LENGTH, choices=GENRE_CHOICES)
     height = models.IntegerField()
     width = models.IntegerField()
-    # start_time = models.DateTimeField(null=True, blank=True)
-    # end_time = models.DateTimeField(null=True, blank=True)
-    # BANNER = 'BANNER'
-    # NONBANNER = 'NONBAN'
-    # ADTYPE_CHOICES = (
-    #   (BANNER, 'Banner'),
-    #   (NONBANNER, 'Not Banner'),
-    # )
-    adtype = models.CharField(max_length=12,
-                              choices=(('ban_top_wide', 'btw'),
-                                       ('ban_right', 'br'),
-                                       ('popup', 'popup'),
-                                       ('ban_left', 'bl')))
-    # HACK: SAVE STATS AS STRINGS THEN PARSE IN VIEW
-    # earnings time series
-    stats1 = models.CharField(max_length=400, null=True, blank=True)
-    # clicks time series
-    stats2 = models.CharField(max_length=400, null=True, blank=True)
-    # impressions time series
-    stats3 = models.CharField(max_length=400, null=True, blank=True)
-    stats4 = models.CharField(max_length=400, null=True, blank=True)
-    stats5 = models.CharField(max_length=400, null=True, blank=True)
-    stats6 = models.CharField(max_length=400, null=True, blank=True)
-    stats7 = models.CharField(max_length=400, null=True, blank=True)
-    stats8 = models.CharField(max_length=400, null=True, blank=True)
-    stats9 = models.CharField(max_length=400, null=True, blank=True)
-    stats10 = models.CharField(max_length=400, null=True, blank=True)
-    # HACK: SUMMARY STATS FOR CONVENIENCE
-    summary1 = models.IntegerField(default=0)
-    summary2 = models.IntegerField(default=0)
-    summary3 = models.IntegerField(default=0)
-    summary4 = models.IntegerField(default=0)
-    summary5 = models.IntegerField(default=0)
-    summary6 = models.IntegerField(default=0)
-    summary7 = models.IntegerField(default=0)
-    summary8 = models.IntegerField(default=0)
-    summary9 = models.IntegerField(default=0)
-    summary10 = models.IntegerField(default=0)
-
     def __str__(self):
         return self.name
-
 
 class AdspaceForm(ModelForm):
     """
@@ -116,41 +69,22 @@ class AdspaceForm(ModelForm):
     """
     class Meta:
         model = Adspace
-        exclude = ['user', 'views', 'clicks', 'total_views', 'total_clicks']
+        exclude = []
 
 
-class Campaign(models.Model):
+class Ad(models.Model):
     """
-    Class for campaign.
-    Campaign is the adspace equivalent for advertiser.
+    Class for advertisements.
+    An advertisement belongs to its (single) owner.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    name = models.CharField(max_length=20)
-    description = models.CharField(max_length=200)
-    category = models.CharField(max_length=200)
-    # HACK: SAVE STATS AS STRINGS THEN PARSE IN VIEW
-    stats1 = models.CharField(max_length=400, null=True, blank=True)
-    stats2 = models.CharField(max_length=400, null=True, blank=True)
-    stats3 = models.CharField(max_length=400, null=True, blank=True)
-    stats4 = models.CharField(max_length=400, null=True, blank=True)
-    stats5 = models.CharField(max_length=400, null=True, blank=True)
-    stats6 = models.CharField(max_length=400, null=True, blank=True)
-    stats7 = models.CharField(max_length=400, null=True, blank=True)
-    stats8 = models.CharField(max_length=400, null=True, blank=True)
-    stats9 = models.CharField(max_length=400, null=True, blank=True)
-    stats10 = models.CharField(max_length=400, null=True, blank=True)
-    # HACK: SUMMARY STATS FOR CONVENIENCE
-    summary1 = models.IntegerField(default=0)
-    summary2 = models.IntegerField(default=0)
-    summary3 = models.IntegerField(default=0)
-    summary4 = models.IntegerField(default=0)
-    summary5 = models.IntegerField(default=0)
-    summary6 = models.IntegerField(default=0)
-    summary7 = models.IntegerField(default=0)
-    summary8 = models.IntegerField(default=0)
-    summary9 = models.IntegerField(default=0)
-    summary10 = models.IntegerField(default=0)
-
+    advertiser = models.ForeignKey(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length=NAME_LENGTH, verbose_name="Ad Name")
+    adtype = models.CharField(max_length=CHOICE_LENGTH, choices=AD_TYPES_rev,
+                              verbose_name="Ad Type")
+    genre = models.CharField(max_length=CHOICE_LENGTH, choices=GENRE_CHOICES)
+    content = models.URLField(max_length=URL_LENGTH)
+    height = models.IntegerField()
+    width = models.IntegerField()
     def __str__(self):
         return self.name
 
@@ -160,41 +94,40 @@ class Contract(models.Model):
     Class for contract.
     This is not the actual Ethereum/NEM smart contract.
     """
-    advertiser = models.ForeignKey(User, on_delete=models.CASCADE)
+    ad = models.ForeignKey(Ad, on_delete=models.CASCADE)
     adspace = models.ForeignKey(Adspace, on_delete=models.CASCADE)
-    name = models.CharField(max_length=20)
+    name = models.CharField(max_length=NAME_LENGTH)
     start_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
     active = models.BooleanField()
-    currency = models.CharField(max_length=20, choices=(('eth', 'ETH'),
+    currency = models.CharField(max_length=NAME_LENGTH, choices=(('eth', 'ETH'),
                                                         ('nem', 'NEM')))
-    # HACK: SAVE STATS AS STRINGS THEN PARSE IN VIEW
-    stats1 = models.CharField(max_length=400, null=True, blank=True)
-    # earnings time series (1 entry per day for last 30 days)
-    stats2 = models.CharField(max_length=400, null=True, blank=True)
-    stats3 = models.CharField(max_length=400, null=True, blank=True)
-    stats4 = models.CharField(max_length=400, null=True, blank=True)
-    stats5 = models.CharField(max_length=400, null=True, blank=True)
-    stats6 = models.CharField(max_length=400, null=True, blank=True)
-    stats7 = models.CharField(max_length=400, null=True, blank=True)
-    stats8 = models.CharField(max_length=400, null=True, blank=True)
-    stats9 = models.CharField(max_length=400, null=True, blank=True)
-    stats10 = models.CharField(max_length=400, null=True, blank=True)
-    # HACK: SUMMARY STATS FOR CONVENIENCE
-    summary1 = models.IntegerField(default=0)
-    summary2 = models.IntegerField(default=0)
-    summary3 = models.IntegerField(default=0)
-    summary4 = models.IntegerField(default=0)
-    summary5 = models.IntegerField(default=0)
-    summary6 = models.IntegerField(default=0)
-    summary7 = models.IntegerField(default=0)
-    summary8 = models.IntegerField(default=0)
-    summary9 = models.IntegerField(default=0)
-    summary10 = models.IntegerField(default=0)
-
+    payout_cap = models.DecimalField(max_digits=MAX_DIGITS,
+                                     decimal_places=DECIMAL_PLACES,
+                                     validators=[MinValueValidator(0)])
     def __str__(self):
         return self.name
 
+class Stat(models.Model):
+    """
+    Class for impressions of a given contract.
+    """
+    contract = models.ManyToManyField(Contract)
+    stat_date = models.DateField()
+    impressions = models.IntegerField(unique_for_date="stat_date",
+                                      validators=[MinValueValidator(0)])
+    clicks = models.IntegerField(unique_for_date="stat_date",
+                                 validators=[MinValueValidator(0)])
+    rpm = models.DecimalField(max_digits=MAX_DIGITS,
+                            #   unique_for_date=date,
+                              decimal_places=DECIMAL_PLACES,
+                              validators=[MinValueValidator(0)])
+    revenue = models.DecimalField(max_digits=MAX_DIGITS,
+                                #   unique_for_date=date,
+                                  decimal_places=DECIMAL_PLACES,
+                                  validators=[MinValueValidator(0)])
+    def __str__(self):
+        return "Stats for date"+str(self.stat_date)
 
 class BaseRequest(models.Model):
     """
