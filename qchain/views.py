@@ -157,10 +157,10 @@ def pub_dashboard(request):
         # get adspaces owned by user
         my_adsp_list = Adspace.objects.filter(publisher=request.user)
         my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
-        # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
+        my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
         print("Ads : ", my_adsp_list)
         print("Contracts : ", my_cont_list)
-        # print("Stats : ", my_stat_list)
+        print("Stats : ", my_stat_list)
         # my_stat_list = sorted(my_stat_list,key=lambda a_stat: a_stat.stat_date)
         context['my_ad_list'] = my_adsp_list
         context['my_cont_list'] = my_cont_list
@@ -189,7 +189,7 @@ def pub_dashboard(request):
         tooltip_date = "%d %b %Y %H:%M:%S %p"
         extra_serie = {"tooltip": {"y_start": "There are ", "y_end": " calls"},
                        "date_format": tooltip_date}
-        chartdata = {'x': times}
+        chartdata = {'x': sorted(times)}
         charttype = "lineWithFocusChart"
 
         for ind1,an_adsp in enumerate(my_adsp_list):
@@ -199,8 +199,7 @@ def pub_dashboard(request):
                 chartdata['name' + str(ind1)] = an_adsp.name
                 related_cont_list = my_cont_list.filter(adspace=an_adsp)
                 for a_cont in related_cont_list:
-                    related_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user,
-                    contract=a_cont)
+                    related_stat_list = my_stat_list.filter(contract=a_cont)
                     related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
                     earnings = []
                     for a_stat in related_stat_list:
@@ -209,32 +208,7 @@ def pub_dashboard(request):
                 chartdata['extra' + str(ind1)] = extra_serie
 
         count = 1
-        # MAIN LOOP
-        # for e in my_ad_list:
-        #     # earnings
-        #     earnings = e.stats1
-        #     earnings_as_list = earnings.split(',')
-        #     earnings_series = [float(i) for i in earnings_as_list]
-        #     earnings_today += earnings_series[-1]
-        #     earnings_30day += sum(earnings_series)
-        #     # top five earnings
-        #     if count < 6:
-        #         chartdata['name' + str(count)] = e.name
-        #         chartdata['y' + str(count)] = earnings_series
-        #         chartdata['extra' + str(count)] = extra_serie
-        #     # clicks
-        #     clicks = e.stats2
-        #     clicks_as_list = clicks.split(',')
-        #     clicks_series = [int(float(i)) for i in clicks_as_list]
-        #     clicks_today += clicks_series[-1]
-        #     clicks_30day += sum(clicks_series)
-        #     # impressions
-        #     impressions = e.stats3
-        #     impressions_as_list = impressions.split(',')
-        #     impressions_series = [int(float(i)) for i in impressions_as_list]
-        #     impressions_today += impressions_series[-1]
-        #     impressions_30day += int(sum(impressions_series))
-        #     count += 1
+
         # CREATE PLOT
         data = {'charttype': charttype,
                 'chartdata': chartdata
@@ -248,13 +222,7 @@ def pub_dashboard(request):
                              'tag_script_js': True,
                              'jquery_on_ready': False,
                              }
-        # SUMMARY STATS CALCULATION
-        # context['earnings_today'] = round(earnings_today, 2)
-        # context['earnings_30day'] = round(earnings_30day / 30.0, 2)
-        # context['clicks_today'] = clicks_today
-        # context['clicks_30day'] = round(clicks_30day / 30.0, 2)
-        # context['impressions_today'] = impressions_today
-        # context['impressions_30day'] = round(impressions_30day / 30.0, 2)
+                             
         # context['metric1_today'] = round(earnings_today / clicks_today, 2)
         # context['metric1_30day'] = round(earnings_30day / clicks_30day, 2)
         # context['metric1_change'] = round(100 * earnings_today /
@@ -267,12 +235,32 @@ def pub_dashboard(request):
         #                                   impressions_today /
         #                                   (earnings_30day /
         #                                    impressions_30day) - 100, 2)
-        context['earnings_today'] = 2
-        context['earnings_30day'] = 2
-        context['clicks_today'] = 2
-        context['clicks_30day'] = 2
-        context['impressions_today'] = 2
-        context['impressions_30day'] = 2
+        print(datetime.date.today())
+        today_stats = my_stat_list.get(stat_date=datetime.date.today())
+        if today_stats:
+            context['revenue_today'] = today_stats.revenue
+            context['clicks_today'] = today_stats.clicks
+            context['impressions_today'] = today_stats.impressions
+            context['rpm_today'] = today_stats.rpm
+        else:
+            context['revenue_today'] = 0
+            context['clicks_today'] = 0
+            context['impressions_today'] = 0
+            context['rpm_today'] = 0
+
+        month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
+        if month_stats:
+            nstats = len(month_stats)
+            context['revenue_30day'] = round(sum([month_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+            context['clicks_30day'] =  round(sum([month_stats[ind].clicks for ind in range(nstats)])/nstats,0)
+            context['impressions_30day'] =  round(sum([month_stats[ind].impressions for ind in range(nstats)])/nstats,0)
+            context['rpm_30day'] =  round(sum([month_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+        else:
+            context['revenue_30day'] = 0
+            context['clicks_30day'] = 0
+            context['impressions_30day'] = 0
+            context['rpm_30day'] = 0
+
         context['metric1_today'] = 2
         context['metric1_30day'] = 2
         context['metric1_change'] = 2
