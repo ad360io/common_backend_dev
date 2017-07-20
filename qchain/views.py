@@ -6,7 +6,7 @@ import random
 import unicodedata
 from django.shortcuts import render
 from .models import Adspace, Website, AdspaceForm, Contract,\
-    RequestForAdv, AD_TYPES, GENRE_CHOICES
+    RequestForAdv, AD_TYPES, GENRE_CHOICES, Stat
 from django.http import HttpResponse
 from django.template import loader
 from django.contrib.auth.decorators import login_required
@@ -151,13 +151,18 @@ def pub_dashboard(request):
     #except Website.DoesNotExist:
         #context['my_website_list'] = False
     print("Got to pub_dashboard")
+    print("User is  : ",request.user)
     try:
         # GET ADSPACES AND DATA ANALYSIS
         # get adspaces owned by user
-        my_ad_list = Adspace.objects.filter(user=request.user)
-        my_cont_list = Contract.objects.filter(advertiser=request.user)
-        print(my_cont_list)
-        context['my_ad_list'] = my_ad_list
+        my_adsp_list = Adspace.objects.filter(publisher=request.user)
+        my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
+        # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
+        print("Ads : ", my_adsp_list)
+        print("Contracts : ", my_cont_list)
+        # print("Stats : ", my_stat_list)
+        # my_stat_list = sorted(my_stat_list,key=lambda a_stat: a_stat.stat_date)
+        context['my_ad_list'] = my_adsp_list
         context['my_cont_list'] = my_cont_list
         # SUMMARY STATS
         earnings_today = 0
@@ -168,42 +173,68 @@ def pub_dashboard(request):
         impressions_30day = 0
         # TIME SERIES PLOT
         nb_element = 30
-        start_time = int(time.mktime(datetime.datetime(2017, 5,
-                                                       1).timetuple()) * 1000)
-        xdata = range(nb_element)
-        xdata = map(lambda x: start_time + x * 100000000, xdata)
+        # print(datetime.datetime(2017, 5,1), type(datetime.datetime(2017, 5,1)))
+        # print(datetime.datetime(2017, 5,1).timetuple(), type(datetime.datetime(2017, 5,1).timetuple()))
+        # print(time.mktime(datetime.datetime(2017, 5,1).timetuple())*10000,
+        # type(time.mktime(datetime.datetime(2017, 5,1).timetuple())))
+        # start_time = int(time.mktime(datetime.datetime(2017, 5,
+        #                                                1).timetuple()) * 1000)
+        # xdata = range(nb_element)
+        # xdata = map(lambda x: start_time + x * 100000000, xdata)
+        # print("xdata is : ",xdata,type(xdata))
+        times = [int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]
+        times2 = [a_stat.stat_date for a_stat in my_stat_list]
+        print("times is : ",times)
+        print("times is actually : ", times2)
         tooltip_date = "%d %b %Y %H:%M:%S %p"
         extra_serie = {"tooltip": {"y_start": "There are ", "y_end": " calls"},
                        "date_format": tooltip_date}
-        chartdata = {'x': xdata}
+        chartdata = {'x': times}
         charttype = "lineWithFocusChart"
+
+        for ind1,an_adsp in enumerate(my_adsp_list):
+            # Find all contracts with this adspace, and get all the stats for
+            # that contract. Currently only earnings
+            if ind1<5:
+                chartdata['name' + str(ind1)] = an_adsp.name
+                related_cont_list = my_cont_list.filter(adspace=an_adsp)
+                for a_cont in related_cont_list:
+                    related_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user,
+                    contract=a_cont)
+                    related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
+                    earnings = []
+                    for a_stat in related_stat_list:
+                        earnings.append(float(a_stat.revenue))
+                chartdata['y' + str(ind1)] = earnings
+                chartdata['extra' + str(ind1)] = extra_serie
+
         count = 1
         # MAIN LOOP
-        for e in my_ad_list:
-            # earnings
-            earnings = e.stats1
-            earnings_as_list = earnings.split(',')
-            earnings_series = [float(i) for i in earnings_as_list]
-            earnings_today += earnings_series[-1]
-            earnings_30day += sum(earnings_series)
-            # top five earnings
-            if count < 6:
-                chartdata['name' + str(count)] = e.name
-                chartdata['y' + str(count)] = earnings_series
-                chartdata['extra' + str(count)] = extra_serie
-            # clicks
-            clicks = e.stats2
-            clicks_as_list = clicks.split(',')
-            clicks_series = [int(float(i)) for i in clicks_as_list]
-            clicks_today += clicks_series[-1]
-            clicks_30day += sum(clicks_series)
-            # impressions
-            impressions = e.stats3
-            impressions_as_list = impressions.split(',')
-            impressions_series = [int(float(i)) for i in impressions_as_list]
-            impressions_today += impressions_series[-1]
-            impressions_30day += int(sum(impressions_series))
-            count += 1
+        # for e in my_ad_list:
+        #     # earnings
+        #     earnings = e.stats1
+        #     earnings_as_list = earnings.split(',')
+        #     earnings_series = [float(i) for i in earnings_as_list]
+        #     earnings_today += earnings_series[-1]
+        #     earnings_30day += sum(earnings_series)
+        #     # top five earnings
+        #     if count < 6:
+        #         chartdata['name' + str(count)] = e.name
+        #         chartdata['y' + str(count)] = earnings_series
+        #         chartdata['extra' + str(count)] = extra_serie
+        #     # clicks
+        #     clicks = e.stats2
+        #     clicks_as_list = clicks.split(',')
+        #     clicks_series = [int(float(i)) for i in clicks_as_list]
+        #     clicks_today += clicks_series[-1]
+        #     clicks_30day += sum(clicks_series)
+        #     # impressions
+        #     impressions = e.stats3
+        #     impressions_as_list = impressions.split(',')
+        #     impressions_series = [int(float(i)) for i in impressions_as_list]
+        #     impressions_today += impressions_series[-1]
+        #     impressions_30day += int(sum(impressions_series))
+        #     count += 1
         # CREATE PLOT
         data = {'charttype': charttype,
                 'chartdata': chartdata
@@ -213,29 +244,41 @@ def pub_dashboard(request):
         context['chartdata1'] = chartdata
         context['chartcontainer1'] = chartcontainer
         context['extra1'] = {'x_is_date': True,
-                             'x_axis_format': '%d %b %Y %H',
+                             'x_axis_format': '%d %b %Y',
                              'tag_script_js': True,
                              'jquery_on_ready': False,
                              }
         # SUMMARY STATS CALCULATION
-        context['earnings_today'] = round(earnings_today, 2)
-        context['earnings_30day'] = round(earnings_30day / 30.0, 2)
-        context['clicks_today'] = clicks_today
-        context['clicks_30day'] = round(clicks_30day / 30.0, 2)
-        context['impressions_today'] = impressions_today
-        context['impressions_30day'] = round(impressions_30day / 30.0, 2)
-        context['metric1_today'] = round(earnings_today / clicks_today, 2)
-        context['metric1_30day'] = round(earnings_30day / clicks_30day, 2)
-        context['metric1_change'] = round(100 * earnings_today /
-                                          clicks_today /
-                                          (earnings_30day /
-                                           clicks_30day) - 100, 2)
-        context['metric2_today'] = round(earnings_today / impressions_today, 2)
-        context['metric2_30day'] = round(earnings_30day / impressions_30day, 2)
-        context['metric2_change'] = round(100 * earnings_today /
-                                          impressions_today /
-                                          (earnings_30day /
-                                           impressions_30day) - 100, 2)
+        # context['earnings_today'] = round(earnings_today, 2)
+        # context['earnings_30day'] = round(earnings_30day / 30.0, 2)
+        # context['clicks_today'] = clicks_today
+        # context['clicks_30day'] = round(clicks_30day / 30.0, 2)
+        # context['impressions_today'] = impressions_today
+        # context['impressions_30day'] = round(impressions_30day / 30.0, 2)
+        # context['metric1_today'] = round(earnings_today / clicks_today, 2)
+        # context['metric1_30day'] = round(earnings_30day / clicks_30day, 2)
+        # context['metric1_change'] = round(100 * earnings_today /
+        #                                   clicks_today /
+        #                                   (earnings_30day /
+        #                                    clicks_30day) - 100, 2)
+        # context['metric2_today'] = round(earnings_today / impressions_today, 2)
+        # context['metric2_30day'] = round(earnings_30day / impressions_30day, 2)
+        # context['metric2_change'] = round(100 * earnings_today /
+        #                                   impressions_today /
+        #                                   (earnings_30day /
+        #                                    impressions_30day) - 100, 2)
+        context['earnings_today'] = 2
+        context['earnings_30day'] = 2
+        context['clicks_today'] = 2
+        context['clicks_30day'] = 2
+        context['impressions_today'] = 2
+        context['impressions_30day'] = 2
+        context['metric1_today'] = 2
+        context['metric1_30day'] = 2
+        context['metric1_change'] = 2
+        context['metric2_today'] = 2
+        context['metric2_30day'] = 2
+        context['metric2_change'] = 2
     except Adspace.DoesNotExist:
     #    context['views_ts'] = False
         context['my_ad_list'] = False
@@ -243,36 +286,36 @@ def pub_dashboard(request):
     # SECOND PLOT
     xdata, ydata = [], []
     print("GOing to try to check for ctype2")
-    for ind in range(len(my_cont_list)):
-        xdata.append(my_cont_list[ind].adspace.name)
-        tydata = [float(a_str) for a_str in str(my_cont_list[ind].stats1).
-                  split(",")]
-        try:
-            print("Got here")
-            if ctype2 == u'0':
-                ydata.append(tydata[-1])
-            elif ctype2 == u'1':
-                ydata.append(sum(tydata[-7:]))
-            elif ctype2 == u'2':
-                ydata.append(sum(tydata))
-        except:
-            print("Exception generated for plot2")
-            ydata.append(tydata[-1])
-    ydata = [int(round(x)) for x in ydata]
-
-    extra_serie1 = {"tooltip": {"y_start": "", "y_end": " cal"}}
-    chartdata = {'x': xdata, 'name1': '', 'y1': ydata, 'extra1': extra_serie1,
-                 }
-    charttype = "discreteBarChart"
-    data = {'charttype': charttype, 'chartdata': chartdata, }
-    chartcontainer = "discretebarchart_container"
-    context['charttype2'] = charttype
-    context['chartdata2'] = chartdata
-    context['chartcontainer2'] = chartcontainer
-    context['extra2'] = {'x_is_date': False,
-                         'x_axis_format': '',
-                         'tag_script_js': True,
-                         'jquery_on_ready': True, }
+    # for ind in range(len(my_cont_list)):
+    #     xdata.append(my_cont_list[ind].adspace.name)
+    #     tydata = [float(a_str) for a_str in str(my_cont_list[ind].stats1).
+    #               split(",")]
+    #     try:
+    #         print("Got here")
+    #         if ctype2 == u'0':
+    #             ydata.append(tydata[-1])
+    #         elif ctype2 == u'1':
+    #             ydata.append(sum(tydata[-7:]))
+    #         elif ctype2 == u'2':
+    #             ydata.append(sum(tydata))
+    #     except:
+    #         print("Exception generated for plot2")
+    #         ydata.append(tydata[-1])
+    # ydata = [int(round(x)) for x in ydata]
+    #
+    # extra_serie1 = {"tooltip": {"y_start": "", "y_end": " cal"}}
+    # chartdata = {'x': xdata, 'name1': '', 'y1': ydata, 'extra1': extra_serie1,
+    #              }
+    # charttype = "discreteBarChart"
+    # data = {'charttype': charttype, 'chartdata': chartdata, }
+    # chartcontainer = "discretebarchart_container"
+    # context['charttype2'] = charttype
+    # context['chartdata2'] = chartdata
+    # context['chartcontainer2'] = chartcontainer
+    # context['extra2'] = {'x_is_date': False,
+    #                      'x_axis_format': '',
+    #                      'tag_script_js': True,
+    #                      'jquery_on_ready': True, }
 
     # DON'T WANT TO HANDLE FORMS ON THE DASHBOARD
     #if request.method == 'POST':

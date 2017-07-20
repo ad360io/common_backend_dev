@@ -113,6 +113,10 @@ class Stat(models.Model):
     Class for impressions of a given contract.
     """
     contract = models.ManyToManyField(Contract)
+    ## When creating stats with code, we can't assign contracts because it is
+    ## a many to ManyToManyField. The way to do this is to define a 'through'
+    ## model and declare instances of that. See the ticket here :
+    ## https://code.djangoproject.com/ticket/21763
     stat_date = models.DateField()
     impressions = models.IntegerField(unique_for_date="stat_date",
                                       validators=[MinValueValidator(0)])
