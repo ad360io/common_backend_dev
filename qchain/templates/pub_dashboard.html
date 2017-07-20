@@ -13,7 +13,7 @@
     <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
     {% include_chart_jscss %}
     {% load_chart charttype1 chartdata1 chartcontainer1 extra1 %}
-    <!-- {% load_chart charttype2 chartdata2 chartcontainer2 extra2 %} -->
+    {% load_chart charttype2 chartdata2 chartcontainer2 extra2 %}
 </head>
 
 <body>
@@ -93,8 +93,8 @@
             performance metric 2
           </div>
         </div>
-      </div>
       </div> -->
+      </div>
 
       <div class="row">
       <div class="col-md-6 col-md-offset-1">
@@ -134,7 +134,7 @@
               {% endif %}
             </div>
 
-            <!-- {% include_container chartcontainer2 300 "100%" %} -->
+            {% include_container chartcontainer2 300 "100%" %}
 
           </div>
         </div>
@@ -191,12 +191,10 @@
               <tbody>
                 {% for cont in my_cont_list %}
                 <tr>
-                  {% if cont.currency == "eth" %}
                     <td>{{ cont.name }}</td>
-                    <td>{{ cont.adspace.website.name }}</td>
+                    <td>{{ cont.adspace.name }}</td>
                     <!-- <td>{{ cont.adspace.adtype }}</td> -->
                     <td>{{ cont.start_time|date:"d M Y" }}</td>
-                  {% endif %}
                 </tr>
                 {% endfor %}
               </tbody>

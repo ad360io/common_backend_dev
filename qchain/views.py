@@ -139,7 +139,7 @@ def agent_details(request):
 
 
 @login_required
-def pub_dashboard(request):
+def pub_dashboard(request, ctype1=0, ctype2=0):
     """
     Publisher dashboard.
     """
@@ -152,6 +152,8 @@ def pub_dashboard(request):
         #context['my_website_list'] = False
     print("Got to pub_dashboard")
     print("User is  : ",request.user)
+    print("Ctype1 : ",ctype1)
+    print("Ctype2 : ",ctype2)
     try:
         # GET ADSPACES AND DATA ANALYSIS
         # get adspaces owned by user
@@ -184,14 +186,13 @@ def pub_dashboard(request):
         # print("xdata is : ",xdata,type(xdata))
         times = [int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]
         times2 = [a_stat.stat_date for a_stat in my_stat_list]
-        print("times is : ",times)
-        print("times is actually : ", times2)
+
         tooltip_date = "%d %b %Y %H:%M:%S %p"
         extra_serie = {"tooltip": {"y_start": "There are ", "y_end": " calls"},
                        "date_format": tooltip_date}
         chartdata = {'x': sorted(times)}
         charttype = "lineWithFocusChart"
-
+        print(my_adsp_list)
         for ind1,an_adsp in enumerate(my_adsp_list):
             # Find all contracts with this adspace, and get all the stats for
             # that contract. Currently only earnings
@@ -201,10 +202,15 @@ def pub_dashboard(request):
                 for a_cont in related_cont_list:
                     related_stat_list = my_stat_list.filter(contract=a_cont)
                     related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
-                    earnings = []
+                    stat2plot = []
                     for a_stat in related_stat_list:
-                        earnings.append(float(a_stat.revenue))
-                chartdata['y' + str(ind1)] = earnings
+                        if ctype1==u'0' or ctype1==0:
+                            stat2plot.append(float(a_stat.revenue))
+                        elif ctype1==u'1':
+                            stat2plot.append(float(a_stat.clicks))
+                        elif ctype1==u'2':
+                            stat2plot.append(float(a_stat.impressions))
+                chartdata['y' + str(ind1)] = stat2plot
                 chartdata['extra' + str(ind1)] = extra_serie
 
         count = 1
@@ -222,7 +228,7 @@ def pub_dashboard(request):
                              'tag_script_js': True,
                              'jquery_on_ready': False,
                              }
-                             
+
         # context['metric1_today'] = round(earnings_today / clicks_today, 2)
         # context['metric1_30day'] = round(earnings_30day / clicks_30day, 2)
         # context['metric1_change'] = round(100 * earnings_today /
@@ -236,12 +242,13 @@ def pub_dashboard(request):
         #                                   (earnings_30day /
         #                                    impressions_30day) - 100, 2)
         print(datetime.date.today())
-        today_stats = my_stat_list.get(stat_date=datetime.date.today())
+        today_stats = my_stat_list.filter(stat_date=datetime.date.today())
         if today_stats:
-            context['revenue_today'] = today_stats.revenue
-            context['clicks_today'] = today_stats.clicks
-            context['impressions_today'] = today_stats.impressions
-            context['rpm_today'] = today_stats.rpm
+            nstats = len(today_stats)
+            context['revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+            context['clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
+            context['impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
+            context['rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
         else:
             context['revenue_today'] = 0
             context['clicks_today'] = 0
@@ -273,37 +280,44 @@ def pub_dashboard(request):
 
     # SECOND PLOT
     xdata, ydata = [], []
-    print("GOing to try to check for ctype2")
-    # for ind in range(len(my_cont_list)):
-    #     xdata.append(my_cont_list[ind].adspace.name)
-    #     tydata = [float(a_str) for a_str in str(my_cont_list[ind].stats1).
-    #               split(",")]
-    #     try:
-    #         print("Got here")
-    #         if ctype2 == u'0':
-    #             ydata.append(tydata[-1])
-    #         elif ctype2 == u'1':
-    #             ydata.append(sum(tydata[-7:]))
-    #         elif ctype2 == u'2':
-    #             ydata.append(sum(tydata))
-    #     except:
-    #         print("Exception generated for plot2")
-    #         ydata.append(tydata[-1])
-    # ydata = [int(round(x)) for x in ydata]
-    #
-    # extra_serie1 = {"tooltip": {"y_start": "", "y_end": " cal"}}
-    # chartdata = {'x': xdata, 'name1': '', 'y1': ydata, 'extra1': extra_serie1,
-    #              }
-    # charttype = "discreteBarChart"
-    # data = {'charttype': charttype, 'chartdata': chartdata, }
-    # chartcontainer = "discretebarchart_container"
-    # context['charttype2'] = charttype
-    # context['chartdata2'] = chartdata
-    # context['chartcontainer2'] = chartcontainer
-    # context['extra2'] = {'x_is_date': False,
-    #                      'x_axis_format': '',
-    #                      'tag_script_js': True,
-    #                      'jquery_on_ready': True, }
+    for ind in range(len(my_cont_list)):
+        xdata.append(my_cont_list[ind].name)
+        related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
+        # tydata = [float(a_str) for a_str in str(my_cont_list[ind].stats1).
+        #           split(",")]
+        try:
+            if ctype2 == u'0' or ctype2 == 0:
+                deltaval = -7
+                # ydata.append(tydata[-1])
+            elif ctype2 == u'1':
+                deltaval = -30
+                ydata.append(sum(tydata[-7:]))
+            elif ctype2 == u'2':
+                deltaval = -100000
+        except:
+            print("no ctype 2")
+            deltaval = -7
+            # ydata.append(tydata[-1])
+        related_stat_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(deltaval))
+        if sum([a_stat.revenue for a_stat in related_stat_list]):
+            ydata.append(sum([a_stat.revenue for a_stat in related_stat_list]))
+        else:
+            ydata.append(0)
+    ydata = [int(round(x)) for x in ydata]
+
+    extra_serie1 = {"tooltip": {"y_start": "", "y_end": " cal"}}
+    chartdata = {'x': xdata, 'name1': '', 'y1': ydata, 'extra1': extra_serie1,
+                 }
+    charttype = "discreteBarChart"
+    data = {'charttype': charttype, 'chartdata': chartdata, }
+    chartcontainer = "discretebarchart_container"
+    context['charttype2'] = charttype
+    context['chartdata2'] = chartdata
+    context['chartcontainer2'] = chartcontainer
+    context['extra2'] = {'x_is_date': False,
+                         'x_axis_format': '',
+                         'tag_script_js': True,
+                         'jquery_on_ready': True, }
 
     # DON'T WANT TO HANDLE FORMS ON THE DASHBOARD
     #if request.method == 'POST':
@@ -321,165 +335,6 @@ def pub_dashboard(request):
     # TODO: WEBSITE DELETION
     return render(request, 'pub_dashboard.html', context)
 
-
-@login_required
-def pub_dashboard2(request, ctype1=0, ctype2=0):
-    """
-    Publisher dashboard.
-    """
-    context = {}
-    #try:
-        #my_website_list = Website.objects.filter(user=request.user)
-        # # get websites owned by user
-        #context['my_website_list'] = my_website_list
-    #except Website.DoesNotExist:
-        #context['my_website_list'] = False
-    try:
-        # GET ADSPACES AND DATA ANALYSIS
-        # get adspaces owned by user
-        my_ad_list = Adspace.objects.filter(user=request.user)
-        my_cont_list = Contract.objects.filter(advertiser=request.user)
-        context['my_ad_list'] = my_ad_list
-        context['my_cont_list'] = my_cont_list
-        # SUMMARY STATS
-        earnings_today = 0
-        clicks_today = 0
-        impressions_today = 0
-        earnings_30day = 0
-        clicks_30day = 0
-        impressions_30day = 0
-        # TIME SERIES PLOT
-        nb_element = 30
-        start_time = int(time.mktime(datetime.datetime(2017, 5,
-                                                       1).timetuple()) * 1000)
-        xdata = range(nb_element)
-        xdata = map(lambda x: start_time + x * 100000000, xdata)
-        tooltip_date = "%d %b %Y %H:%M:%S %p"
-        extra_serie = {"tooltip": {"y_start": "There are ", "y_end": " calls"},
-                       "date_format": tooltip_date}
-        chartdata = {'x': xdata}
-        charttype = "lineWithFocusChart"
-        count = 1
-        # MAIN LOOP
-        for e in my_ad_list:
-            # earnings
-            earnings = e.stats1
-            earnings_as_list = earnings.split(',')
-            earnings_series = [float(i) for i in earnings_as_list]
-            earnings_today += earnings_series[-1]
-            earnings_30day += sum(earnings_series)
-            # top five earnings
-            # clicks
-            clicks = e.stats2
-            clicks_as_list = clicks.split(',')
-            clicks_series = [int(float(i)) for i in clicks_as_list]
-            clicks_today += clicks_series[-1]
-            clicks_30day += sum(clicks_series)
-            # impressions
-            impressions = e.stats3
-            impressions_as_list = impressions.split(',')
-            impressions_series = [int(float(i)) for i in impressions_as_list]
-            impressions_today += impressions_series[-1]
-            impressions_30day += int(sum(impressions_series))
-
-            if count < 6:
-                chartdata['name' + str(count)] = e.name
-                if ctype1 == u'0':
-                    chartdata['y' + str(count)] = earnings_series
-                elif ctype1 == u'1':
-                    chartdata['y' + str(count)] = clicks_series
-                else:
-                    chartdata['y' + str(count)] = impressions_series
-                chartdata['extra' + str(count)] = extra_serie
-
-            count += 1
-        # CREATE PLOT
-        data = {'charttype': charttype, 'chartdata': chartdata}
-        chartcontainer = "linewithfocuschart_container"
-        context['charttype1'] = charttype
-        context['chartdata1'] = chartdata
-        context['chartcontainer1'] = chartcontainer
-        context['extra1'] = {'x_is_date': True,
-                             'x_axis_format': '%d %b %Y',
-                             'tag_script_js': True,
-                             'jquery_on_ready': False,
-                             }
-        # SUMMARY STATS CALCULATION
-        context['earnings_today'] = round(earnings_today, 2)
-        context['earnings_30day'] = round(earnings_30day / 30.0, 2)
-        context['clicks_today'] = clicks_today
-        context['clicks_30day'] = round(clicks_30day / 30.0, 2)
-        context['impressions_today'] = impressions_today
-        context['impressions_30day'] = round(impressions_30day / 30.0, 2)
-        context['metric1_today'] = round(earnings_today / clicks_today, 2)
-        context['metric1_30day'] = round(earnings_30day / clicks_30day, 2)
-        context['metric1_change'] = round(100 * earnings_today /
-                                          clicks_today /
-                                          (earnings_30day /
-                                           clicks_30day) - 100, 2)
-        context['metric2_today'] = round(earnings_today / impressions_today, 2)
-        context['metric2_30day'] = round(earnings_30day / impressions_30day, 2)
-        context['metric2_change'] = round(100 * earnings_today /
-                                          impressions_today /
-                                          (earnings_30day /
-                                           impressions_30day) - 100, 2)
-        if isinstance(ctype1, unicode):
-            context['c1'] = unicodedata.digit(ctype1)
-        else:
-            context['c1'] = ctype1
-        if isinstance(ctype2, unicode):
-            context['c2'] = unicodedata.digit(ctype2)
-        else:
-            context['c2'] = ctype2
-        # context['c2'] =. unicodedata.digit(ctype2)
-    except Adspace.DoesNotExist:
-    #    context['views_ts'] = False
-        print('Adspace doest not exist')
-        context['my_ad_list'] = False
-
-    # SECOND PLOT
-    xdata, ydata = [], []
-    for ind in range(len(my_cont_list)):
-        xdata.append(my_cont_list[ind].adspace.name)
-        tydata = [float(a_str) for a_str in str(my_cont_list[ind].stats1
-                                                ).split(",")]
-        if ctype2 == u'0' or ctype2==0:
-            ydata.append(tydata[-1])
-        elif ctype2 == u'1':
-            ydata.append(sum(tydata[-7:]))
-        elif ctype2 == u'2':
-            ydata.append(sum(tydata))
-        else:
-            print("ctype2 was none of those : ",ctype2)
-    ydata = [int(round(x)) for x in ydata]
-
-    extra_serie1 = {"tooltip": {"y_start": "", "y_end": " cal"}}
-    chartdata = {'x': xdata, 'name1': '', 'y1': ydata, 'extra1': extra_serie1,
-                 }
-    charttype = "discreteBarChart"
-    data = {'charttype': charttype, 'chartdata': chartdata, }
-    chartcontainer = "discretebarchart_container"
-    context['charttype2'] = charttype
-    context['chartdata2'] = chartdata
-    context['chartcontainer2'] = chartcontainer
-    context['extra2'] = {'x_is_date': False, 'x_axis_format': '',
-                         'tag_script_js': True, 'jquery_on_ready': True, }
-
-    # DON'T WANT TO HANDLE FORMS ON THE DASHBOARD
-    #if request.method == 'POST':
-        # NOTE: TWO FORMS DON'T WORK AT THE SAME TIME
-        #web_form = WebsiteForm(request.POST)
-        #if form.is_valid():
-            #new_website = web_form.save(commit=False)
-            #new_website.user = request.user
-            #new_website.save()
-    #else:
-        #web_form = WebsiteForm()
-        #ad_form = AdspaceForm()
-    #context['web_form'] = web_form
-    #context['ad_form'] = ad_form
-    # TODO: WEBSITE DELETION
-    return render(request, 'pub_dashboard.html', context)
 
 # INSTANCE CREATION & MANAGEMENT FOR WEBSITE, ADSPACE, CAMPAIGN, CONTRACT
 
