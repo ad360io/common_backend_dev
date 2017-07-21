@@ -66,18 +66,20 @@
           </div>
         </div>
       </div>
-
       <div class="col-md-9">
         <div class="panel panel-default">
           <div class="panel-body">
-            {% if my_ad_list %}
-              {% for adreq in my_ad_list %}
-                <h4>{{ adreq.name }} <a href={{adreq.website_url}}>
-                  {{adreq.website_url}}</a>
-                  <span class="label label-default">{{ adreq.adtype }}</span>
-                  <span class="label label-info">{{ adreq.genre }}</span>
-                  <small> {{adreq.asking_rate}}</small>
-                  <span class="label label-success">{{ adreq.currency }}</span></h4>
+            {% if my_both_list %}
+              {% for a_pair in my_both_list %}
+                <h4>{{ a_pair.0.name }}
+                    <a href={{a_pair.1.website.link}}>
+                  {{a_pair.1.website.name}}</a>
+                  <span class="label label-default">{{ a_pair.1.genre }}</span>
+                  <span class="label label-info">{{ a_pair.1.adtype }}</span>
+                  <small> {{a_pair.0.asking_rate}}</small>
+                  <span class="label label-success">{{ a_pair.0.currency }}</span>
+                  <small>{{ a_pair.0.msg }}</small>
+                </h4>
               {% endfor %}
             {% else %}
               <p> No adspaces match your request </p>

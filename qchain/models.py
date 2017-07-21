@@ -1,8 +1,9 @@
 from django.db import models
 from django.forms import ModelForm
 from django.contrib.auth.models import User
-from django.core.validators import MinValueValidator
-
+from django.core.validators import MinValueValidator, DecimalValidator
+from django.core.exceptions import ValidationError
+from django.utils.translation import ugettext_lazy as _
 
 AD_TYPES = (('btw', 'ban_top_wide'), ('br', 'ban_right'),
             ('popup', 'popup'), ('bl', 'ban_left'))
@@ -100,8 +101,8 @@ class Contract(models.Model):
     start_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
     active = models.BooleanField()
-    currency = models.CharField(max_length=NAME_LENGTH, choices=(('eth', 'ETH'),
-                                                        ('nem', 'NEM')))
+    currency = models.CharField(max_length=NAME_LENGTH, choices=(('eqc', 'EQC'),
+                                                        ('xqc', 'XQC')))
     payout_cap = models.DecimalField(max_digits=MAX_DIGITS,
                                      decimal_places=DECIMAL_PLACES,
                                      validators=[MinValueValidator(0)])
@@ -125,52 +126,57 @@ class Stat(models.Model):
     rpm = models.DecimalField(max_digits=MAX_DIGITS,
                             #   unique_for_date=date,
                               decimal_places=DECIMAL_PLACES,
-                              validators=[MinValueValidator(0)])
+                              validators=[MinValueValidator(0),
+                                          DecimalValidator(MAX_DIGITS,
+                                                           DECIMAL_PLACES)])
     revenue = models.DecimalField(max_digits=MAX_DIGITS,
                                 #   unique_for_date=date,
                                   decimal_places=DECIMAL_PLACES,
-                                  validators=[MinValueValidator(0)])
+                                  validators=[MinValueValidator(0),
+                                              DecimalValidator(MAX_DIGITS,
+                                                               DECIMAL_PLACES)])
     def __str__(self):
         return "Stats for date"+str(self.stat_date)
 
-class BaseRequest(models.Model):
+class RequestForAdv(models.Model):
     """
-    Base class for a request.
-    Contains fields common to advertiser and publisher requests.
+    Class for request for an advertisement from a publisher.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    # website = models.ForeignKey(Website, on_delete=models.CASCADE)
-    name = models.CharField(max_length=20)
-
-    adtype = models.CharField(max_length=12, choices=AD_TYPES)
-    genre = models.CharField(max_length=12, choices=GENRE_CHOICES)
+    adsp = models.ManyToManyField(Adspace)
+    name = models.CharField(max_length=NAME_LENGTH)
     currency = models.CharField(max_length=4,
-                                choices=(("xqc", "XQC"), ("eqc", "EQC")))
+                                choices=(("eqc", "EQC"), ("xqc", "XQC")))
     asking_rate = models.DecimalField(max_digits=MAX_DIGITS,
                                       decimal_places=DECIMAL_PLACES,
-                                      validators=[MinValueValidator(0)])
+                                      validators=[MinValueValidator(0),
+                                                  DecimalValidator(MAX_DIGITS,
+                                                                   DECIMAL_PLACES)])
+    ask_date_from = models.DateField()
+    ask_date_to = models.DateField()
+    msg = models.CharField(max_length=SHORT_TXT_LENGTH)
 
     def __str__(self):
         return self.name
 
+    def clean(self):
+        if self.ask_date_from >= self.ask_date_to:
+            raise ValidationError(_('From date should preceed to date.'))
 
-class RequestForAdv(BaseRequest):
-    """
-    Request for an advertiser from a publisher.
-    """
-    website_url = models.URLField()
-
-
-class RequestForPub(BaseRequest):
-    """
-    Request for a puublisher from an advertiser.
-    """
-    website_name = models.CharField(max_length=30)
-    website_url = models.URLField()
-    website_type = models.CharField(
-                                    max_length=12,
-                                    choices=(('Health', 'health'),
-                                             ('Tech', 'tech'),
-                                             ('Social', 'social'),
-                                             ('Uncategorised', 'uncat'))
-    )
+# class RequestForAdsp(models.Model):
+#     """
+#     Class for request for an adspace from an advertiser.
+#     """
+#     user = models.ForeignKey(User, on_delete=models.CASCADE)
+#     # website = models.ForeignKey(Website, on_delete=models.CASCADE)
+#     name = models.CharField(max_length=20)
+#
+#     adtype = models.CharField(max_length=12, choices=AD_TYPES)
+#     genre = models.CharField(max_length=12, choices=GENRE_CHOICES)
+#     currency = models.CharField(max_length=4,
+#                                 choices=(("xqc", "XQC"), ("eqc", "EQC")))
+#     asking_rate = models.DecimalField(max_digits=MAX_DIGITS,
+#                                       decimal_places=DECIMAL_PLACES,
+#                                       validators=[MinValueValidator(0)])
+#
+#     def __str__(self):
+#         return self.name

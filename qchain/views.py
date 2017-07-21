@@ -50,17 +50,19 @@ def list(request):
             if 'adtype' in request.GET:
                 qstr = [dict(AD_TYPES)[a_type] for a_type in
                         request.GET.getlist('adtype')]
-                my_adreq_list = my_adreq_list.filter(adtype__in=qstr)
+                my_adreq_list = my_adreq_list.filter(adsp__adtype__in=qstr)
             if 'genre' in request.GET:
                 qstr = [dict(GENRE_CHOICES)[a_genre] for a_genre in
                         request.GET.getlist('genre')]
                 qstr = request.GET.getlist('genre')
-                my_adreq_list = my_adreq_list.filter(genre__in=qstr)
+                my_adreq_list = my_adreq_list.filter(adsp__genre__in=qstr)
             if 'minrate' in request.GET and 'maxrate' in request.GET:
-                if request.GET.get('minrate') > request.GET.get('maxrate'):
-                    print("incorrect rates")
-                    context['ferrors'].append(("Invalid rates. Max rate should"
-                                               " be less than min rate"))
+                if request.GET.get('minrate') != u'' and request.GET.get('maxrate') != u'':
+                    print(request.GET.getlist('minrate'),request.GET.getlist('maxrate'))
+                    if request.GET.get('minrate') > request.GET.get('maxrate'):
+                        print("incorrect rates")
+                        context['ferrors'].append(("Invalid rates. Min rate should"
+                                                   " be less than max rate"))
             if 'minrate' in request.GET:
                 if request.GET.get('minrate') is not u'':
                     minrate = request.GET.get('minrate')
@@ -71,10 +73,15 @@ def list(request):
                     maxrate = request.GET.get('maxrate')
                     my_adreq_list = my_adreq_list.filter(asking_rate__lte=
                                                          maxrate)
-
+        my_adsp_list = [areq.adsp.all()[0] for areq in my_adreq_list]
+        # context['my_adsp_list'] = my_adsp_list
+        print(context)
         form = RequestForm()
-        context['my_ad_list'] = my_adreq_list
+        context['my_adreq_list'] = my_adreq_list
         context['form'] = form
+        if not(context['ferrors']):
+            context['my_both_list'] = zip(my_adreq_list,my_adsp_list)
+            context['my_adreq_list'] = my_adreq_list
         return render(request, 'marketplace_ad.html', context)
     else:
         form = RequestForm()

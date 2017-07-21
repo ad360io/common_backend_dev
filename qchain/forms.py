@@ -1,7 +1,7 @@
 from django import forms
 from django.forms.extras.widgets import SelectDateWidget
 import account.forms
-from qchain.models import (RequestForAdv, BaseRequest, AD_TYPES, MAX_DIGITS,
+from qchain.models import (RequestForAdv, AD_TYPES, MAX_DIGITS,
 DECIMAL_PLACES, GENRE_CHOICES)
 
 

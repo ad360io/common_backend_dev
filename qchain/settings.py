@@ -11,7 +11,7 @@ DEBUG = True
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "test.db",
+        "NAME": "dev.db",
     }
 }
 
@@ -125,6 +125,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.sites",
     "django.contrib.staticfiles",
+    "django_extensions",
 
     # theme
     "bootstrapform",
