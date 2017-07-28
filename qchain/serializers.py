@@ -8,3 +8,9 @@ class AdspaceSerializer(serializers.ModelSerializer):
         model = Adspace
         fields = ('publisher', 'website', 'name', 'adtype', 'genre',
         'height', 'width')
+
+class ContractSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contract
+        fields = ('ad', 'adspace', 'name', 'start_time', 'end_time', 'active',
+        'currency', 'payout')

@@ -368,8 +368,10 @@ def pub_dashboard_ser(request):
         print("Contracts : ", my_cont_list)
         print("Stats : ", my_stat_list)
         # my_stat_list = sorted(my_stat_list,key=lambda a_stat: a_stat.stat_date)
-        # context['my_ad_list'] = my_adsp_list
-        # context['my_cont_list'] = my_cont_list
+        ser = AdspaceSerializer(my_adsp_list)
+        context['my_ad_list'] = ser.data
+        ser = ContractSerializer(my_cont_list)
+        context['my_cont_list'] = my_cont_list
         # SUMMARY STATS
         earnings_today = 0
         clicks_today = 0
