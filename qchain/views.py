@@ -7,7 +7,7 @@ import unicodedata
 from django.shortcuts import render
 from .models import Adspace, Website, AdspaceForm, Contract,\
     RequestForAdv, AD_TYPES, GENRE_CHOICES, Stat
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.contrib.auth.decorators import login_required
 from .forms import RequestForm
@@ -342,6 +342,154 @@ def pub_dashboard(request, ctype1=0, ctype2=0):
     # TODO: WEBSITE DELETION
     return render(request, 'pub_dashboard.html', context)
 
+@login_required
+def pub_dashboard_ser(request):
+    """
+    Publisher dashboard.
+    """
+    context = {}
+    #try:
+        # # get websites owned by user
+        #my_website_list = Website.objects.filter(user=request.user)
+        #context['my_website_list'] = my_website_list
+    #except Website.DoesNotExist:
+        #context['my_website_list'] = False
+    print("Got to pub_dashboard")
+    print("User is  : ",request.user)
+    print("Ctype1 : ",ctype1)
+    print("Ctype2 : ",ctype2)
+    try:
+        # GET ADSPACES AND DATA ANALYSIS
+        # get adspaces owned by user
+        my_adsp_list = Adspace.objects.filter(publisher=request.user)
+        my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
+        my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
+        print("Ads : ", my_adsp_list)
+        print("Contracts : ", my_cont_list)
+        print("Stats : ", my_stat_list)
+        # my_stat_list = sorted(my_stat_list,key=lambda a_stat: a_stat.stat_date)
+        # context['my_ad_list'] = my_adsp_list
+        # context['my_cont_list'] = my_cont_list
+        # SUMMARY STATS
+        earnings_today = 0
+        clicks_today = 0
+        impressions_today = 0
+        earnings_30day = 0
+        clicks_30day = 0
+        impressions_30day = 0
+        # TIME SERIES PLOT
+        nb_element = 30
+
+        times = [int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]
+        times2 = [a_stat.stat_date for a_stat in my_stat_list]
+
+        tooltip_date = "%d %b %Y %H:%M:%S %p"
+        extra_serie = {"tooltip": {"y_start": "There are ", "y_end": " calls"},
+                       "date_format": tooltip_date}
+        chartdata = {'x': sorted(times)}
+        charttype = "lineWithFocusChart"
+        print(my_adsp_list)
+        for ind1,an_adsp in enumerate(my_adsp_list):
+            # Find all contracts with this adspace, and get all the stats for
+            # that contract. Currently only earnings
+            if ind1<5:
+                chartdata['name' + str(ind1)] = an_adsp.name
+                related_cont_list = my_cont_list.filter(adspace=an_adsp)
+                for a_cont in related_cont_list:
+                    related_stat_list = my_stat_list.filter(contract=a_cont)
+                    related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
+                    stat2plot = []
+                    for a_stat in related_stat_list:
+                        context['s2prevenue'].append(float(a_stat.revenue))
+                        context['s2pclicks'].append(float(a_stat.clicks))
+                        context['s2pimpression'].append(float(a_stat.impressions))
+                chartdata['y' + str(ind1)] = stat2plot
+                chartdata['extra' + str(ind1)] = extra_serie
+
+        count = 1
+
+        # CREATE PLOT
+        data = {'charttype': charttype,
+                'chartdata': chartdata
+                }
+        chartcontainer = "linewithfocuschart_container"
+        context['charttype1'] = charttype
+        context['chartdata1'] = chartdata
+        # context['chartcontainer1'] = chartcontainer
+        # context['extra1'] = {'x_is_date': True,
+        #                      'x_axis_format': '%d %b %Y',
+        #                      'tag_script_js': True,
+        #                      'jquery_on_ready': False,
+        #                      }
+        print(datetime.date.today())
+        today_stats = my_stat_list.filter(stat_date=datetime.date.today())
+        if today_stats:
+            nstats = len(today_stats)
+            context['revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+            context['clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
+            context['impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
+            context['rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+        else:
+            context['revenue_today'] = 0
+            context['clicks_today'] = 0
+            context['impressions_today'] = 0
+            context['rpm_today'] = 0
+
+        month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
+        if month_stats:
+            nstats = len(month_stats)
+            context['revenue_30day'] = round(sum([month_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+            context['clicks_30day'] =  round(sum([month_stats[ind].clicks for ind in range(nstats)])/nstats,0)
+            context['impressions_30day'] =  round(sum([month_stats[ind].impressions for ind in range(nstats)])/nstats,0)
+            context['rpm_30day'] =  round(sum([month_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+        else:
+            context['revenue_30day'] = 0
+            context['clicks_30day'] = 0
+            context['impressions_30day'] = 0
+            context['rpm_30day'] = 0
+
+        context['metric1_today'] = 2
+        context['metric1_30day'] = 2
+        context['metric1_change'] = 2
+        context['metric2_today'] = 2
+        context['metric2_30day'] = 2
+        context['metric2_change'] = 2
+    except Adspace.DoesNotExist:
+    #    context['views_ts'] = False
+        context['my_ad_list'] = False
+
+    # SECOND PLOT
+    xdata, ydata = [], []
+    for ind in range(len(my_cont_list)):
+        xdata2.append(my_cont_list[ind].name)
+        related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
+        week_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-7))
+        day30_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-30))
+        alltime_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-10000))
+        # In the front end, sum up the correct list, round to 0 places and display.
+
+    context['xdata2'] = xdata2
+    context['week_list'] = week_list
+    context['day30_list'] = day30_list
+    context['alltime_list'] = alltime_list
+    extra_serie1 = {"tooltip": {"y_start": "", "y_end": " cal"}}
+    chartdata = {'x': xdata, 'name1': '', 'y1': ydata, 'extra1': extra_serie1,
+                 }
+    charttype = "discreteBarChart"
+    data = {'charttype': charttype, 'chartdata': chartdata, }
+    chartcontainer = "discretebarchart_container"
+    context['charttype2'] = charttype
+    context['chartdata2'] = chartdata
+    context['chartcontainer2'] = chartcontainer
+    context['extra2'] = {'x_is_date': False,
+                         'x_axis_format': '',
+                         'tag_script_js': True,
+                         'jquery_on_ready': True, }
+
+    # TODO: WEBSITE DELETION
+    content = JSONRenderer().render(context)
+    return JsonResponse(content)
+    # return render(request, 'pub_dashboard.html', context)
 
 # INSTANCE CREATION & MANAGEMENT FOR WEBSITE, ADSPACE, CAMPAIGN, CONTRACT
 
