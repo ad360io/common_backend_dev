@@ -5,12 +5,12 @@ import datetime
 import random
 import unicodedata
 from django.shortcuts import render
-from .models import Adspace, Website, AdspaceForm, Contract,\
+from .models import Adspace, Website, Contract,\
     RequestForAdv, AD_TYPES, GENRE_CHOICES, Stat
 from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.contrib.auth.decorators import login_required
-from .forms import RequestForm
+from .forms import RequestForm, AdspaceForm, DetailForm
 
 
 # DEPRECATED
@@ -104,15 +104,50 @@ def ad_detail(request, ad_id):
         raise Http404("Adspace does not exist")
     return render(request, 'ad_detail.html', {'ad': ad})
 
+def testview0(request):
+    """
+    Test view to act as placeholder while developing. Remove during production.
+    """
+    print("testview0")
+    return render(request, 'test_page.html')
 
-def testview(request, ctype1):
+def testview1(request, ctype1):
     """
     Test view to act as placeholder while developing. Remove during production.
     """
     print(ctype1)
     return render(request, 'test_page.html')
 
+def create_adsp(request):
+    """
+    View to create adspace for publisher
+    """
+    print("reqiest method is : " + request.method)
+    context = {}
+    context['ferrors'] = []
+    if request.method == "GET":
+        print("Get method")
+        form = AdspaceForm()
+        context = {'form': form}
+        return render(request, 'create_adsp.html', context)
+    else:
+        print("Other method")
+        ## TODO: Save form
+        f = AdspaceForm(request.POST)
+        if f.is_valid():
+            f2 = f.save(commit=False)
+            f2.publisher = request.user
+            f2.save()
+            print(type(f), type(f2))
+            print(f)
+            context['form'] = AdspaceForm()
+        else:
+            print("Form not valid for some reason")
+        # form = AdspaceForm()
+        # context = {'form': form}
+        return render(request, 'create_adsp.html', context)
 
+    return render(request, 'create_adsp.html')
 # DEPRECATED
 def ad_list(request, web_id):
     """

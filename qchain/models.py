@@ -63,14 +63,14 @@ class Adspace(models.Model):
     def __str__(self):
         return self.name
 
-class AdspaceForm(ModelForm):
-    """
-    Form based on adspace model.
-    User should be set separately in view using request.user.
-    """
-    class Meta:
-        model = Adspace
-        exclude = []
+# class AdspaceForm(ModelForm):
+#     """
+#     Form based on adspace model.
+#     User should be set separately in view using request.user.
+#     """
+#     class Meta:
+#         model = Adspace
+#         exclude = []
 
 
 class Ad(models.Model):

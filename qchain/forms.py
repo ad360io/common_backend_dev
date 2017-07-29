@@ -2,8 +2,8 @@ from django import forms
 from django.forms.extras.widgets import SelectDateWidget
 import account.forms
 from qchain.models import (RequestForAdv, AD_TYPES, MAX_DIGITS,
-DECIMAL_PLACES, GENRE_CHOICES)
-
+DECIMAL_PLACES, GENRE_CHOICES, Adspace)
+from django.forms import ModelForm
 
 class DetailForm(forms.Form):
     birthdate = forms.DateField(widget=SelectDateWidget(years=range(1910,
@@ -50,10 +50,11 @@ class RequestForm(forms.Form):
                                  max_digits=MAX_DIGITS,
                                  decimal_places=DECIMAL_PLACES)
 
-# class Meta:
-# model = RequestForAdv
-# fields = ('asking_rate',)
-# widgets = {
-# 'adtype': forms.MultipleChoiceField(required=False,
-# widget=forms.CheckboxSelectMultiple)
-# }
+class AdspaceForm(ModelForm):
+    class Meta:
+        model = Adspace
+        exclude = ['publisher']
+        # widgets = {
+        # 'adtype': forms.MultipleChoiceField(required=False,
+        # widget=forms.CheckboxSelectMultiple)
+        # }
