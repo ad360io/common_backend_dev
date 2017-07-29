@@ -118,6 +118,12 @@ def testview1(request, ctype1):
     print(ctype1)
     return render(request, 'test_page.html')
 
+def testview_ser(request):
+    """
+    View to
+    """
+    print()
+
 def create_adsp(request):
     """
     View to create adspace for publisher
@@ -146,8 +152,48 @@ def create_adsp(request):
         # form = AdspaceForm()
         # context = {'form': form}
         return render(request, 'create_adsp.html', context)
+    return render(request, 'create_adsp.html')
+
+def create_adsp_ser(request):
+    """
+    View to create adspace for publisher (serializer)
+    """
+    print("reqiest method is : " + request.method)
+    context = {}
+    context['ferrors'] = []
+    if request.method == "GET":
+        print("Get method")
+        form = AdspaceForm()
+        # context = {'form': form}
+        # return render(request, 'create_adsp.html', context)
+        ser = AdspaceSerializer(form)
+        return JsonResponse(ser.data, safe=False)
+    else:
+        print("Other method")
+        ## TODO: Save form
+        data = JSONParser().parse(request)
+        print(data)
+        ser = AdspaceSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+        # f = AdspaceForm(request.POST)
+        # if f.is_valid():
+        #     f2 = f.save(commit=False)
+        #     f2.publisher = request.user
+        #     f2.save()
+        #     print(type(f), type(f2))
+        #     print(f)
+        #     context['form'] = AdspaceForm()
+        # else:
+        #     print("Form not valid for some reason")
+        # form = AdspaceForm()
+        # context = {'form': form}
+        # return render(request, 'create_adsp.html', context)
 
     return render(request, 'create_adsp.html')
+
 # DEPRECATED
 def ad_list(request, web_id):
     """
