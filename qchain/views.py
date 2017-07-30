@@ -122,7 +122,13 @@ def testview_ser(request):
     """
     View to
     """
-    print()
+    print("GOt to testview_ser")
+    # x = 5
+    # data = JSONRenderer().render(x)
+    temp = Adspace.Objects.get(pk=1)
+    ser = AdspaceSerializer(temp)
+    print(ser.data)
+    return JsonResponse(ser.data)
 
 def create_adsp(request):
     """
@@ -167,6 +173,7 @@ def create_adsp_ser(request):
         # context = {'form': form}
         # return render(request, 'create_adsp.html', context)
         ser = AdspaceSerializer(form)
+        print("Serialized data is: ", ser.data)
         return JsonResponse(ser.data, safe=False)
     else:
         print("Other method")
