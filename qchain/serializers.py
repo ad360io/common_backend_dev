@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from qchain.models import Agent, Website, Adspace, AdspaceForm, Ad, Contract, \
+from qchain.models import Agent, Website, Adspace, Ad, Contract, \
 Stat, RequestForAdv
 from qchain.forms import AdspaceForm
 

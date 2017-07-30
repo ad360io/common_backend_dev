@@ -20,7 +20,7 @@ urlpatterns = [
     url(r'^pub-dashboard/(?P<ctype1>[0-2])/$', qchain.views.pub_dashboard, name='pub_dashboard2'), # publisher dashboard
     url(r'^pub-dashboard/(?P<ctype1>[0-2])/(?P<ctype2>[0-2])/$', qchain.views.pub_dashboard, name='pub_dashboard2'), # publisher dashboard
     url(r'^testview/(?P<ctype1>[0-2])/$', qchain.views.testview1, name='testview'),
-    url(r'^create-adsp/$', qchain.views.testview_ser, name='create-adsp')
+    url(r'^create-adsp/$', qchain.views.create_adsp_ser, name='create-adsp')
     #url(r'^sites/(?P<web_id>[0-9]+)/$', qchain.views.ad_list, name='ad_list'),
 ]
 

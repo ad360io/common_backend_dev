@@ -10,8 +10,8 @@ from .models import Adspace, Website, Contract,\
 from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.contrib.auth.decorators import login_required
-from .forms import RequestForm, AdspaceForm, DetailForm
-
+from qchain.forms import RequestForm, AdspaceForm, DetailForm
+from qchain.serializers import AdspaceSerializer, AdspaceFormSerializer
 
 # DEPRECATED
 @login_required
@@ -125,7 +125,7 @@ def testview_ser(request):
     print("GOt to testview_ser")
     # x = 5
     # data = JSONRenderer().render(x)
-    temp = Adspace.Objects.get(pk=1)
+    temp = Adspace.objects.get(pk=1)
     ser = AdspaceSerializer(temp)
     print(ser.data)
     return JsonResponse(ser.data)
@@ -172,9 +172,13 @@ def create_adsp_ser(request):
         form = AdspaceForm()
         # context = {'form': form}
         # return render(request, 'create_adsp.html', context)
-        ser = AdspaceSerializer(form)
+        help(AdspaceFormSerializer)
+        ser = AdspaceFormSerializer(form)
+        help(ser)
         print("Serialized data is: ", ser.data)
-        return JsonResponse(ser.data, safe=False)
+        context = {'form': form}
+        return render(request, 'create_adsp.html', context)
+        # return JsonResponse(ser.data, safe=False)
     else:
         print("Other method")
         ## TODO: Save form
