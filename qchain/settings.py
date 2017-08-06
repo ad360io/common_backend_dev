@@ -103,9 +103,8 @@ TEMPLATES = [
 ]
 
 MIDDLEWARE_CLASSES = [
-    "corsheaders.middleware.CorsMiddleware",
-    "django.middleware.common.CommonMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -114,11 +113,21 @@ MIDDLEWARE_CLASSES = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# Just for example, edit as seen fit.
-CORS_ORIGIN_WHITELIST = (
-    'localhost:8000',
-    '127.0.0.1:9000'
-)
+CORS_ORIGIN_ALLOW_ALL = True
+# CORS_ALLOW_CREDENTIALS= True
+# # Just for example, edit as seen fit.
+# CORS_ORIGIN_WHITELIST = (
+#     'localhost:8000',
+#     '127.0.0.1:9000',
+#     'localhost:4200',
+#     'localhost:4200/create-adsp/',
+#     'localhost:8000/create-adsp/',
+# )
+#
+# CORS_ORIGIN_REGEX_WHITELIST = (
+#     r'^(https?://)?(\w+\.)?localhost:4200/.*$',
+#     r'^(https?://)?(\w+\.)?localhost:8000/.*$',
+# )
 
 ROOT_URLCONF = "qchain.urls"
 
@@ -135,7 +144,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_extensions",
     "rest_framework",
-    "corsheaders"
+    "corsheaders",
 
     # theme
     "bootstrapform",

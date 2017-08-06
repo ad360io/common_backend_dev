@@ -12,6 +12,15 @@ from django.template import loader
 from django.contrib.auth.decorators import login_required
 from qchain.forms import RequestForm, AdspaceForm, DetailForm
 from qchain.serializers import AdspaceSerializer, AdspaceFormSerializer
+from rest_framework.decorators import api_view
+from rest_framework import response
+
+# class AdspaceViewSet(viewsets.ModelViewSet):
+#     """
+#     API endpoint that allows users to be viewed or edited.
+#     """
+#     queryset = Adspace.objects.all()
+#     serializer_class = DinosaurSerializer
 
 # DEPRECATED
 @login_required
@@ -104,12 +113,33 @@ def ad_detail(request, ad_id):
         raise Http404("Adspace does not exist")
     return render(request, 'ad_detail.html', {'ad': ad})
 
+@api_view(['GET', 'POST'])
 def testview0(request):
     """
     Test view to act as placeholder while developing. Remove during production.
     """
-    print("testview0")
-    return render(request, 'test_page.html')
+    print(type(request))
+    # help(request)
+    print(request.content_type)
+    if request.method == "GET":
+        print("testview0")
+        # return response.Response({"message": "Hello, world!", "m2": 2, "m3": 2.5})
+        x = Adspace.objects.get(pk=1)
+        x = AdspaceSerializer(x)
+        y = Adspace.objects.all()
+        y = AdspaceSerializer(y, many=True)
+        y2 = [1,2,3,3,4]
+        return response.Response({"j":"jetti", "x":x.data, "y":y.data, "y2":y2})
+    elif request.method == "POST":
+        print("testview1")
+        obj = AdspaceSerializer(data=request.data)
+        print(type(obj),obj)
+        if obj.is_valid():
+            print("Valid tooo")
+            obj.save()
+            print("Saved the objects to database")
+
+        return response.Response({"j":"jetti2"})
 
 def testview1(request, ctype1):
     """
@@ -160,6 +190,7 @@ def create_adsp(request):
         return render(request, 'create_adsp.html', context)
     return render(request, 'create_adsp.html')
 
+@api_view(['GET', 'POST'])
 def create_adsp_ser(request):
     """
     View to create adspace for publisher (serializer)
@@ -169,21 +200,25 @@ def create_adsp_ser(request):
     context['ferrors'] = []
     if request.method == "GET":
         print("Get method")
-        form = AdspaceForm()
+        # form = AdspaceForm()
         # context = {'form': form}
         # return render(request, 'create_adsp.html', context)
-        help(AdspaceFormSerializer)
-        ser = AdspaceFormSerializer(form)
-        help(ser)
+        # help(AdspaceFormSerializer)
+        # ser = AdspaceSerializer(form)
+        data = Adspace.objects.get(pk=1)
+        ser = AdspaceSerializer(data)
+        # help(ser)
         print("Serialized data is: ", ser.data)
-        context = {'form': form}
-        return render(request, 'create_adsp.html', context)
+        context = {'form': ser.data}
+        # return render(request, 'create_adsp.html', context)
         # return JsonResponse(ser.data, safe=False)
-    else:
-        print("Other method")
+        # TODO Somehow use this to make a form.
+        return response.Response({"data":ser.data})
+    elif request.method=="POST":
+        print("Post method")
         ## TODO: Save form
-        data = JSONParser().parse(request)
-        print(data)
+        # data = JSONParser().parse(request)
+        # print(data)
         ser = AdspaceSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
