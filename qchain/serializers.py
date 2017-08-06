@@ -9,10 +9,10 @@ class AdspaceSerializer(serializers.ModelSerializer):
         fields = ('publisher', 'website', 'name', 'adtype', 'genre',
         'height', 'width')
 
-class AdspaceFormSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AdspaceForm
-        fields = "__all__"
+# class AdspaceFormSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = AdspaceForm
+#         fields = "__all__"
 
 class AdSerializer(serializers.ModelSerializer):
     class Meta:
@@ -24,3 +24,8 @@ class ContractSerializer(serializers.ModelSerializer):
         model = Contract
         fields = ('ad', 'adspace', 'name', 'start_time', 'end_time', 'active',
         'currency', 'payout')
+
+class RequestForAdvSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RequestForAdv
+        fields = "__all__"

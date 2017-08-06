@@ -11,7 +11,8 @@ from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.contrib.auth.decorators import login_required
 from qchain.forms import RequestForm, AdspaceForm, DetailForm
-from qchain.serializers import AdspaceSerializer, AdspaceFormSerializer
+from qchain.serializers import AdspaceSerializer, \
+    AdSerializer, RequestForAdvSerializer
 from rest_framework.decorators import api_view
 from rest_framework import response
 
@@ -22,27 +23,9 @@ from rest_framework import response
 #     queryset = Adspace.objects.all()
 #     serializer_class = DinosaurSerializer
 
-# DEPRECATED
+
 @login_required
-def godlike(request):
-    user = request.user
-    # create a website
-    title = user.username
-    url = 'https://wwww.' + user.username + '.com'
-    keywords = 'Tech, finance'
-    website = Website(user=user, link=url, name=title, description=keywords,
-                      category='NONPOL')
-    website.save()
-    # create ads
-    for i in range(5):
-        name = 'space' + str(i)
-        current_ad = Adspace(user=user, website=website, name=name,
-                             height=400, width=200, adtype='BANNER')
-        current_ad.save()
-
-
-# MEDIUM PRIORITY
-def list(request):
+def marketplace(request):
     """
     List of all adspaces.
     User should be able to filter/search.
@@ -100,6 +83,65 @@ def list(request):
         # TODO: FILTER BY PREFERENCES
         return render(request, 'marketplace_ad.html', context)
 
+@api_view(['GET', 'POST'])
+def marketplace_ser(request):
+    """
+    List of all adspaces.
+    User should be able to filter/search.
+    Returns rest_framework response.Response objects.
+    """
+
+    if request.method == "GET":
+        # TODO Swap out the commented lines below
+        # my_adreq_list = RequestForAdv.objects.filter(adsp__publisher=request.user)
+        my_adreq_list = RequestForAdv.objects.all()
+        context = {}
+        if request.data:
+            # TODO Test out one filter like currency and then the rest.
+            if 'currency' in request.data:
+                my_adreq_list = my_adreq_list.filter(currency__iexact=
+                                                     request.GET['currency'])
+            # if 'adtype' in request.GET:
+            #     qstr = [dict(AD_TYPES)[a_type] for a_type in
+            #             request.GET.getlist('adtype')]
+            #     my_adreq_list = my_adreq_list.filter(adsp__adtype__in=qstr)
+            # if 'genre' in request.GET:
+            #     qstr = [dict(GENRE_CHOICES)[a_genre] for a_genre in
+            #             request.GET.getlist('genre')]
+            #     qstr = request.GET.getlist('genre')
+            #     my_adreq_list = my_adreq_list.filter(adsp__genre__in=qstr)
+            # if 'minrate' in request.GET and 'maxrate' in request.GET:
+            #     if request.GET.get('minrate') != u'' and request.GET.get('maxrate') != u'':
+            #         print(request.GET.getlist('minrate'),request.GET.getlist('maxrate'))
+            #         if request.GET.get('minrate') > request.GET.get('maxrate'):
+            #             print("incorrect rates")
+            #             context['ferrors'].append(("Invalid rates. Min rate should"
+            #                                        " be less than max rate"))
+            # if 'minrate' in request.GET:
+            #     if request.GET.get('minrate') is not u'':
+            #         minrate = request.GET.get('minrate')
+            #         my_adreq_list = my_adreq_list.filter(asking_rate__gte=
+            #                                              minrate)
+            # if ('maxrate' in request.GET):
+            #     if request.GET.get('maxrate') is not u'':
+            #         maxrate = request.GET.get('maxrate')
+            #         my_adreq_list = my_adreq_list.filter(asking_rate__lte=
+            #                                              maxrate)
+        my_adsp_list = [areq.adsp.all()[0] for areq in my_adreq_list]
+        serializer = AdSerializer(my_adsp_list, many=True)
+        context['my_adsp_list'] = serializer.data
+        serializer = RequestForAdvSerializer(my_adreq_list, many=True)
+        context['my_adreq_list'] = serializer.data
+        # if not(context['ferrors']):
+        #     context['my_both_list'] = zip(my_adreq_list,my_adsp_list)
+        #     context['my_adreq_list'] = my_adreq_list
+        return response.Response(context)
+    elif request.method=="POST":
+        form = RequestForm()
+        print(request.user)
+        my_adreq_list = RequestForAdv.objects.filter(adsp__publisher=request.user)
+        context = {'my_ad_list': my_adreq_list, 'form': form}
+        return response.Response(context)
 
 # LOW PRIORITY
 def ad_detail(request, ad_id):
@@ -164,32 +206,43 @@ def create_adsp(request):
     """
     View to create adspace for publisher
     """
-    print("reqiest method is : " + request.method)
     context = {}
     context['ferrors'] = []
     if request.method == "GET":
-        print("Get method")
-        form = AdspaceForm()
-        context = {'form': form}
-        return render(request, 'create_adsp.html', context)
-    else:
+        # TODO in front end create teh form.
+        return response.Response({"junk":42.5})
+    elif request.method == "POST":
         print("Other method")
         ## TODO: Save form
-        f = AdspaceForm(request.POST)
-        if f.is_valid():
-            f2 = f.save(commit=False)
-            f2.publisher = request.user
-            f2.save()
-            print(type(f), type(f2))
-            print(f)
-            context['form'] = AdspaceForm()
+        serializer = AdspaceSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            print("Saved the object to database")
         else:
-            print("Form not valid for some reason")
-        # form = AdspaceForm()
-        # context = {'form': form}
-        return render(request, 'create_adsp.html', context)
-    return render(request, 'create_adsp.html')
+            print("Form not valid for some reason : ")
+            raise ValidationError(_(serializer.errors))
+        return response.Response({"junk":42.5})
+    return response.Response({"junk":42.5}) #Maybe 404
 
+@api_view(['GET', 'POST'])
+def create_ad(request):
+    """
+    To do like above.
+    """
+
+@api_view(['GET', 'POST'])
+def create_requestforadsp(request):
+    """
+    To do like above.
+    """
+
+@api_view(['GET', 'POST'])
+def create_requestforadsp(request):
+    """
+    To do like above.
+    """
+
+# @login_required
 @api_view(['GET', 'POST'])
 def create_adsp_ser(request):
     """
@@ -200,16 +253,10 @@ def create_adsp_ser(request):
     context['ferrors'] = []
     if request.method == "GET":
         print("Get method")
-        # form = AdspaceForm()
-        # context = {'form': form}
-        # return render(request, 'create_adsp.html', context)
-        # help(AdspaceFormSerializer)
-        # ser = AdspaceSerializer(form)
         data = Adspace.objects.get(pk=1)
-        ser = AdspaceSerializer(data)
-        # help(ser)
-        print("Serialized data is: ", ser.data)
-        context = {'form': ser.data}
+        serializer = AdspaceSerializer(data)
+        print("Serialized data is: ", serializer.data)
+        context = {'form': serializer.data}
         # return render(request, 'create_adsp.html', context)
         # return JsonResponse(ser.data, safe=False)
         # TODO Somehow use this to make a form.
@@ -221,55 +268,15 @@ def create_adsp_ser(request):
         # print(data)
         ser = AdspaceSerializer(data=data)
         if serializer.is_valid():
-            serializer.save()
-            return JsonResponse(serializer.data, status=201)
-        return JsonResponse(serializer.errors, status=400)
-        # f = AdspaceForm(request.POST)
-        # if f.is_valid():
-        #     f2 = f.save(commit=False)
-        #     f2.publisher = request.user
-        #     f2.save()
-        #     print(type(f), type(f2))
-        #     print(f)
-        #     context['form'] = AdspaceForm()
-        # else:
-        #     print("Form not valid for some reason")
-        # form = AdspaceForm()
-        # context = {'form': form}
-        # return render(request, 'create_adsp.html', context)
+            # TODO have to set the user somehow and test it too. And then save.
+            # Will commit=False work? serializer.publisher prob won't work.
+            # serializer.save(commit=False)
+            # serializer.publisher = request.user
+            # serializer.save()
+            return response.Response(serializer.data) #Code 201
+        return response.Response(serializer.errors) #Code 400
 
     return render(request, 'create_adsp.html')
-
-# DEPRECATED
-def ad_list(request, web_id):
-    """
-    List of adspaces on a website.
-    """
-    try:
-        site = Website.objects.get(pk=web_id)
-        ad_list = Adspace.objects.filter(website=site)
-    except Adspace.DoesNotExist:
-        raise Http404("Website does not exist")
-    return render(request, 'ad_list.html', {'ad_list': ad_list})
-
-
-# LOW PRIORITY
-@login_required
-def agent_details(request):
-    """
-    Edit agent details/user profile.
-    """
-    if request.method == 'POST':
-        form = qchain.forms.DetailForm(request.POST)
-        if form.is_valid():
-            agent = request.user.agent  # agent and user are one-to-one
-            # get form info (only birthdate for now)
-            agent.birthdate = form.cleaned_data["birthdate"]
-            agent.save()
-    else:
-        form = qchain.forms.DetailForm()
-    # TODO: display current details and confirm changes
-    return render(request, 'details.html', {'form': form})
 
 
 @login_required
@@ -475,16 +482,10 @@ def pub_dashboard_ser(request):
     Publisher dashboard.
     """
     context = {}
-    #try:
-        # # get websites owned by user
-        #my_website_list = Website.objects.filter(user=request.user)
-        #context['my_website_list'] = my_website_list
-    #except Website.DoesNotExist:
-        #context['my_website_list'] = False
     print("Got to pub_dashboard")
     print("User is  : ",request.user)
-    print("Ctype1 : ",ctype1)
-    print("Ctype2 : ",ctype2)
+    # print("Ctype1 : ",ctype1)
+    # print("Ctype2 : ",ctype2)
     try:
         # GET ADSPACES AND DATA ANALYSIS
         # get adspaces owned by user
@@ -544,12 +545,12 @@ def pub_dashboard_ser(request):
         chartcontainer = "linewithfocuschart_container"
         context['charttype1'] = charttype
         context['chartdata1'] = chartdata
-        # context['chartcontainer1'] = chartcontainer
-        # context['extra1'] = {'x_is_date': True,
-        #                      'x_axis_format': '%d %b %Y',
-        #                      'tag_script_js': True,
-        #                      'jquery_on_ready': False,
-        #                      }
+        context['chartcontainer1'] = chartcontainer
+        context['extra1'] = {'x_is_date': True,
+                             'x_axis_format': '%d %b %Y',
+                             'tag_script_js': True,
+                             'jquery_on_ready': False,
+                             }
         print(datetime.date.today())
         today_stats = my_stat_list.filter(stat_date=datetime.date.today())
         if today_stats:
@@ -615,30 +616,31 @@ def pub_dashboard_ser(request):
                          'tag_script_js': True,
                          'jquery_on_ready': True, }
 
-    # TODO: WEBSITE DELETION
-    content = JSONRenderer().render(context)
-    return JsonResponse(content)
+    # TODO:
+    return response.Response(context)
+    # content = JSONRenderer().render(context)
+    # return JsonResponse(content)
     # return render(request, 'pub_dashboard.html', context)
 
 # INSTANCE CREATION & MANAGEMENT FOR WEBSITE, ADSPACE, CAMPAIGN, CONTRACT
 
 
 # LOW PRIORITY
-@login_required
-def create_ad(request):
-    """
-    Create a new adspace.
-    """
-    if request.method == 'POST':
-        form = AdspaceForm(request.POST)
-        if form.is_valid():
-            new_ad = form.save(commit=False)
-            new_ad.user = request.user
-            new_ad.save()
-            # increment website adcount
-            current_website = form.cleaned_data["website"]
-            current_website.save()
-    else:
-        form = AdspaceForm()
-        form.fields['website'].queryset = Website.objects.filter(user=request.user)
-    return render(request, 'create_ad.html', {'form': form})
+# @login_required
+# def create_ad(request):
+#     """
+#     Create a new adspace.
+#     """
+#     if request.method == 'POST':
+#         form = AdspaceForm(request.POST)
+#         if form.is_valid():
+#             new_ad = form.save(commit=False)
+#             new_ad.user = request.user
+#             new_ad.save()
+#             # increment website adcount
+#             current_website = form.cleaned_data["website"]
+#             current_website.save()
+#     else:
+#         form = AdspaceForm()
+#         form.fields['website'].queryset = Website.objects.filter(user=request.user)
+#     return render(request, 'create_ad.html', {'form': form})
