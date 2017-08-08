@@ -22,8 +22,7 @@ class AdSerializer(serializers.ModelSerializer):
 class ContractSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contract
-        fields = ('ad', 'adspace', 'name', 'start_time', 'end_time', 'active',
-        'currency', 'payout')
+        fields = "__all__"
 
 class RequestForAdvSerializer(serializers.ModelSerializer):
     class Meta:
@@ -33,4 +32,9 @@ class RequestForAdvSerializer(serializers.ModelSerializer):
 class WebsiteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Website
+        fields = "__all__"
+
+class StatSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Stat
         fields = "__all__"

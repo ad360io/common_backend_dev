@@ -12,7 +12,8 @@ from django.template import loader
 from django.contrib.auth.decorators import login_required
 from qchain.forms import RequestForm, AdspaceForm, DetailForm
 from qchain.serializers import AdspaceSerializer, \
-    AdSerializer, RequestForAdvSerializer, WebsiteSerializer, ContractSerializer
+    AdSerializer, RequestForAdvSerializer, WebsiteSerializer, \
+    ContractSerializer, StatSerializer
 from rest_framework.decorators import api_view
 from rest_framework import response
 
@@ -494,12 +495,16 @@ def pub_dashboard_ser(request):
     Publisher dashboard.
     """
     context = {}
-    print("Got to pub_dashboard")
-    print("User is  : ",request.user)
-    # print("Ctype1 : ",ctype1)
-    # print("Ctype2 : ",ctype2)
+    print("Got to pub_dashboard_ser")
+    # print("User is  : ",request.user)
+    ## TODO
+    ## 1. Make this work with request.user (Django Sessions)
+    ## 2. Fill up more data
+    ## 3. Add a balance and account number to the profile.
+    ## 4. Verify filters and sent data when awake :D
+    ## 5. Little green box - daily change should be calculated
+
     try:
-        # GET ADSPACES AND DATA ANALYSIS
         # get adspaces owned by user
         t = Agent.objects.all()
         print(t,t[2].user, type(t[2]))
@@ -512,11 +517,12 @@ def pub_dashboard_ser(request):
         print("Ads : ", my_adsp_list)
         print("Contracts : ", my_cont_list)
         print("Stats : ", my_stat_list)
-        # my_stat_list = sorted(my_stat_list,key=lambda a_stat: a_stat.stat_date)
-        ser = AdspaceSerializer(my_adsp_list)
-        # context['my_ad_list'] = ser.data
-        ser = ContractSerializer(my_cont_list)
+
+        ser = AdspaceSerializer(my_adsp_list, many=True)
+        context['my_ad_list'] = ser.data
+        # ser = ContractSerializer(my_cont_list, many=True)
         # context['my_cont_list'] = my_cont_list
+
         # SUMMARY STATS
         earnings_today = 0
         clicks_today = 0
@@ -529,122 +535,79 @@ def pub_dashboard_ser(request):
 
         times = [int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]
         times2 = [a_stat.stat_date for a_stat in my_stat_list]
+        ## SHIVA: Don't know which format you want time in, replace times with
+        ## times2 in the next line if needed. Seems like times is more versatile
+        ## and can be converted to other formats in front end as was happening
+        ## earlier. Times2 is more restricted but is hard to transform.
+        context['c1_x'] = sorted(times)
+        context['c1_adspnames'] = []
 
-        tooltip_date = "%d %b %Y %H:%M:%S %p"
-        extra_serie = {"tooltip": {"y_start": "There are ", "y_end": " calls"},
-                       "date_format": tooltip_date}
-        chartdata = {'x': sorted(times)}
-        charttype = "lineWithFocusChart"
-        print(my_adsp_list)
         for ind1,an_adsp in enumerate(my_adsp_list):
+            context['c1_y_revenue'+str(ind1)] = [0]*len(times)
+            context['c1_y_clicks'+str(ind1)] = [0]*len(times)
+            context['c1_y_impression'+str(ind1)] = [0]*len(times)
             # Find all contracts with this adspace, and get all the stats for
-            # that contract. Currently only earnings
+            # those contracts and sum. Currently only earnings
             if ind1<5:
-                chartdata['name' + str(ind1)] = an_adsp.name
+                context['c1_adspnames'].append(an_adsp.name)
                 related_cont_list = my_cont_list.filter(adspace=an_adsp)
                 for a_cont in related_cont_list:
                     related_stat_list = my_stat_list.filter(contract=a_cont)
                     related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
-                    stat2plot = []
-                    # for a_stat in related_stat_list:
-                        # context['s2prevenue'].append(float(a_stat.revenue))
-                        # context['s2pclicks'].append(float(a_stat.clicks))
-                        # context['s2pimpression'].append(float(a_stat.impressions))
-                # chartdata['y' + str(ind1)] = stat2plot
-                # chartdata['extra' + str(ind1)] = extra_serie
+                    for a_stat in related_stat_list:
+                        time_index = times2.index(a_stat.stat_date)
+                        context['c1_y_revenue'+str(ind1)][time_index]+=float(a_stat.revenue)
+                        context['c1_y_clicks'+str(ind1)][time_index]+=float(a_stat.clicks)
+                        context['c1_y_impression'+str(ind1)][time_index]+=float(a_stat.impressions)
 
-        count = 1
-
-        # CREATE PLOT
-        data = {'charttype': charttype,
-                'chartdata': chartdata
-                }
-        chartcontainer = "linewithfocuschart_container"
-        # context['charttype1'] = charttype
-        # context['chartdata1'] = chartdata
-        # context['chartcontainer1'] = chartcontainer
-        # context['extra1'] = {'x_is_date': True,
-        #                      'x_axis_format': '%d %b %Y',
-        #                      'tag_script_js': True,
-        #                      'jquery_on_ready': False,
-        #                      }
-        print(datetime.date.today())
         today_stats = my_stat_list.filter(stat_date=datetime.date.today())
         if today_stats:
             nstats = len(today_stats)
-            context['revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
-            context['clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
-            context['impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
-            context['rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+            context['topstat_revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+            context['topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
+            context['topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
+            context['topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
         else:
-            context['revenue_today'] = 0
-            context['clicks_today'] = 0
-            context['impressions_today'] = 0
-            context['rpm_today'] = 0
+            context['topstat_revenue_today'] = 0
+            context['topstat_clicks_today'] = 0
+            context['topstat_impressions_today'] = 0
+            context['topstat_rpm_today'] = 0
 
         month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
         if month_stats:
             nstats = len(month_stats)
-            context['revenue_30day'] = round(sum([month_stats[ind].revenue for ind in range(nstats)])/nstats,8)
-            context['clicks_30day'] =  round(sum([month_stats[ind].clicks for ind in range(nstats)])/nstats,0)
-            context['impressions_30day'] =  round(sum([month_stats[ind].impressions for ind in range(nstats)])/nstats,0)
-            context['rpm_30day'] =  round(sum([month_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+            context['topstat_revenue_30day'] = round(sum([month_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+            context['topstat_clicks_30day'] =  round(sum([month_stats[ind].clicks for ind in range(nstats)])/nstats,0)
+            context['topstat_impressions_30day'] =  round(sum([month_stats[ind].impressions for ind in range(nstats)])/nstats,0)
+            context['topstat_rpm_30day'] =  round(sum([month_stats[ind].rpm for ind in range(nstats)])/nstats,8)
         else:
-            context['revenue_30day'] = 0
-            context['clicks_30day'] = 0
-            context['impressions_30day'] = 0
-            context['rpm_30day'] = 0
+            context['topstat_revenue_30day'] = 0
+            context['topstat_clicks_30day'] = 0
+            context['topstat_impressions_30day'] = 0
+            context['topstat_rpm_30day'] = 0
 
-        context['metric1_today'] = 2
-        context['metric1_30day'] = 2
-        context['metric1_change'] = 2
-        context['metric2_today'] = 2
-        context['metric2_30day'] = 2
-        context['metric2_change'] = 2
     except Adspace.DoesNotExist:
-    #    context['views_ts'] = False
-        context['my_ad_list'] = False
+        context['is_error'] = "No adspaces found"
 
     # SECOND PLOT
-    xdata, ydata, xdata2 = [], [], []
+    xdata = []
+    context['c2_y_weekrevenue'] = [0]*len(my_cont_list)
+    context['c2_y_day30revenue'] = [0]*len(my_cont_list)
+    context['c2_y_alltimerevenue'] = [0]*len(my_cont_list)
     for ind in range(len(my_cont_list)):
-        xdata2.append(my_cont_list[ind].name)
+        xdata.append(my_cont_list[ind].name)
         related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
         week_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-7))
         day30_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-30))
         alltime_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-10000))
+        context['c2_y_weekrevenue'][ind] = sum([a_stat.revenue for a_stat in week_list])
+        context['c2_y_day30revenue'][ind] = sum([a_stat.revenue for a_stat in day30_list])
+        context['c2_y_alltimerevenue'][ind] = sum([a_stat.revenue for a_stat in alltime_list])
         # In the front end, sum up the correct list, round to 0 places and display.
 
-    context['xdata2'] = xdata2
-    # context['week_list'] = week_list
-    # context['day30_list'] = day30_list
-    # context['alltime_list'] = alltime_list
-    extra_serie1 = {"tooltip": {"y_start": "", "y_end": " cal"}}
-    chartdata = {'x': xdata, 'name1': '', 'y1': ydata, 'extra1': extra_serie1,
-                 }
-    charttype = "discreteBarChart"
-    data = {'charttype': charttype, 'chartdata': chartdata, }
-    chartcontainer = "discretebarchart_container"
-    # context['charttype2'] = charttype
-    # context['chartdata2'] = chartdata
-    # context['chartcontainer2'] = chartcontainer
-    # context['extra2'] = {'x_is_date': False,
-    #                      'x_axis_format': '',
-    #                      'tag_script_js': True,
-    #                      'jquery_on_ready': True, }
+    context['c2_xdata'] = xdata
 
-    # TODO:
-    dict1 ={}
-    dict1['abcd'] = 2
-    t2 = Adspace.objects.get(pk=1)
-    serializer = AdspaceSerializer(t2)
-    # return response.Response(serializer.data)
-    # return response.Response(JSONRenderer().render(dict1))
     return response.Response(context)
-    # return response.Response(context)
-    # content = JSONRenderer().render(context)
-    # return JsonResponse(content)
-    # return render(request, 'pub_dashboard.html', context)
 
 # INSTANCE CREATION & MANAGEMENT FOR WEBSITE, ADSPACE, CAMPAIGN, CONTRACT
 
