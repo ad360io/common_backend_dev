@@ -13,7 +13,7 @@ urlpatterns = [
     url(r"^account/", include("account.urls")),
     url(r'^marketplace/', qchain.views.marketplace_ser, name='list'), # marketplace
     url(r'^marketplace/(?P<ad_id>[0-9]+)/$', qchain.views.ad_detail, name='ad_detail'), # posting details
-    url(r'^pub-dashboard/$', qchain.views.pub_dashboard, name='pub_dashboard'), # publisher dashboard
+    url(r'^pub-dashboard/$', qchain.views.pub_dashboard_ser, name='pub_dashboard'), # publisher dashboard
     # url(r'^pub-dashboard/(?P<ctype1>[0-2])/$', qchain.views.pub_dashboard, name='pub_dashboard2'), # publisher dashboard
     # url(r'^pub-dashboard/(?P<ctype1>[0-2])/(?P<ctype2>[0-2])/$', qchain.views.pub_dashboard, name='pub_dashboard2'), # publisher dashboard
     url(r'^testview/(?P<ctype1>[0-2])/$', qchain.views.testview1, name='testview'),

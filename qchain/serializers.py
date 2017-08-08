@@ -29,3 +29,8 @@ class RequestForAdvSerializer(serializers.ModelSerializer):
     class Meta:
         model = RequestForAdv
         fields = "__all__"
+
+class WebsiteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Website
+        fields = "__all__"

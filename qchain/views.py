@@ -6,13 +6,13 @@ import random
 import unicodedata
 from django.shortcuts import render
 from .models import Adspace, Website, Contract,\
-    RequestForAdv, AD_TYPES, GENRE_CHOICES, Stat
+    RequestForAdv, AD_TYPES, GENRE_CHOICES, Stat, Agent
 from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.contrib.auth.decorators import login_required
 from qchain.forms import RequestForm, AdspaceForm, DetailForm
 from qchain.serializers import AdspaceSerializer, \
-    AdSerializer, RequestForAdvSerializer
+    AdSerializer, RequestForAdvSerializer, WebsiteSerializer, ContractSerializer
 from rest_framework.decorators import api_view
 from rest_framework import response
 
@@ -98,13 +98,13 @@ def marketplace_ser(request):
         context = {}
         if request.data:
             # TODO Test out one filter like currency and then the rest.
-            if 'currency' in request.data:
-                my_adreq_list = my_adreq_list.filter(currency__iexact=
-                                                     request.GET['currency'])
-            # if 'adtype' in request.GET:
-            #     qstr = [dict(AD_TYPES)[a_type] for a_type in
-            #             request.GET.getlist('adtype')]
-            #     my_adreq_list = my_adreq_list.filter(adsp__adtype__in=qstr)
+            # if 'currency' in request.data:
+            #     my_adreq_list = my_adreq_list.filter(currency__iexact=
+            #                                          request.GET['currency'])
+            if 'adtype' in request.GET:
+                qstr = [dict(AD_TYPES)[a_type] for a_type in
+                        request.GET.getlist('adtype')]
+                my_adreq_list = my_adreq_list.filter(adsp__adtype__in=qstr)
             # if 'genre' in request.GET:
             #     qstr = [dict(GENRE_CHOICES)[a_genre] for a_genre in
             #             request.GET.getlist('genre')]
@@ -155,6 +155,7 @@ def ad_detail(request, ad_id):
         raise Http404("Adspace does not exist")
     return render(request, 'ad_detail.html', {'ad': ad})
 
+# @login_required
 @api_view(['GET', 'POST'])
 def testview0(request):
     """
@@ -165,6 +166,7 @@ def testview0(request):
     print(request.content_type)
     if request.method == "GET":
         print("testview0")
+        print(request.user)
         # return response.Response({"message": "Hello, world!", "m2": 2, "m3": 2.5})
         x = Adspace.objects.get(pk=1)
         x = AdspaceSerializer(x)
@@ -237,7 +239,7 @@ def create_requestforadsp(request):
     """
 
 @api_view(['GET', 'POST'])
-def create_requestforadsp(request):
+def create_requestforad(request):
     """
     To do like above.
     """
@@ -252,28 +254,37 @@ def create_adsp_ser(request):
     context = {}
     context['ferrors'] = []
     if request.method == "GET":
-        print("Get method")
-        data = Adspace.objects.get(pk=1)
-        serializer = AdspaceSerializer(data)
-        print("Serialized data is: ", serializer.data)
-        context = {'form': serializer.data}
+        print("Get method in create_adsp_ser")
+        # data = Adspace.objects.get(pk=1)
+        # serializer = AdspaceSerializer(data)
+        # print("Serialized data is: ", serializer.data)
+        print(request.user)
+        websites = list(set([an_adsp.website for an_adsp in \
+        Adspace.objects.filter(publisher=request.user)]))
+        print(websites, type(websites))
+        serializer = WebsiteSerializer(websites, many=True)
+        context = {'websites' : serializer.data}
         # return render(request, 'create_adsp.html', context)
         # return JsonResponse(ser.data, safe=False)
         # TODO Somehow use this to make a form.
-        return response.Response({"data":ser.data})
+        return response.Response({"data":serializer.data})
     elif request.method=="POST":
         print("Post method")
         ## TODO: Save form
         # data = JSONParser().parse(request)
         # print(data)
-        ser = AdspaceSerializer(data=data)
+        print(request.data)
+        serializer = AdspaceSerializer(data=request.data)
         if serializer.is_valid():
             # TODO have to set the user somehow and test it too. And then save.
             # Will commit=False work? serializer.publisher prob won't work.
+            print("Valid serializer")
             # serializer.save(commit=False)
             # serializer.publisher = request.user
             # serializer.save()
             return response.Response(serializer.data) #Code 201
+        else:
+            print("Invalid serializer")
         return response.Response(serializer.errors) #Code 400
 
     return render(request, 'create_adsp.html')
@@ -476,7 +487,8 @@ def pub_dashboard(request, ctype1=0, ctype2=0):
     # TODO: WEBSITE DELETION
     return render(request, 'pub_dashboard.html', context)
 
-@login_required
+# @login_required
+@api_view(['GET', 'POST'])
 def pub_dashboard_ser(request):
     """
     Publisher dashboard.
@@ -489,17 +501,22 @@ def pub_dashboard_ser(request):
     try:
         # GET ADSPACES AND DATA ANALYSIS
         # get adspaces owned by user
-        my_adsp_list = Adspace.objects.filter(publisher=request.user)
-        my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
-        my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
+        t = Agent.objects.all()
+        print(t,t[2].user, type(t[2]))
+        # my_adsp_list = Adspace.objects.filter(publisher=request.user)
+        # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
+        # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
+        my_adsp_list = Adspace.objects.filter(publisher=t[2].user)
+        my_cont_list = Contract.objects.filter(adspace__publisher=t[2].user)
+        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user)
         print("Ads : ", my_adsp_list)
         print("Contracts : ", my_cont_list)
         print("Stats : ", my_stat_list)
         # my_stat_list = sorted(my_stat_list,key=lambda a_stat: a_stat.stat_date)
         ser = AdspaceSerializer(my_adsp_list)
-        context['my_ad_list'] = ser.data
+        # context['my_ad_list'] = ser.data
         ser = ContractSerializer(my_cont_list)
-        context['my_cont_list'] = my_cont_list
+        # context['my_cont_list'] = my_cont_list
         # SUMMARY STATS
         earnings_today = 0
         clicks_today = 0
@@ -529,12 +546,12 @@ def pub_dashboard_ser(request):
                     related_stat_list = my_stat_list.filter(contract=a_cont)
                     related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
                     stat2plot = []
-                    for a_stat in related_stat_list:
-                        context['s2prevenue'].append(float(a_stat.revenue))
-                        context['s2pclicks'].append(float(a_stat.clicks))
-                        context['s2pimpression'].append(float(a_stat.impressions))
-                chartdata['y' + str(ind1)] = stat2plot
-                chartdata['extra' + str(ind1)] = extra_serie
+                    # for a_stat in related_stat_list:
+                        # context['s2prevenue'].append(float(a_stat.revenue))
+                        # context['s2pclicks'].append(float(a_stat.clicks))
+                        # context['s2pimpression'].append(float(a_stat.impressions))
+                # chartdata['y' + str(ind1)] = stat2plot
+                # chartdata['extra' + str(ind1)] = extra_serie
 
         count = 1
 
@@ -543,14 +560,14 @@ def pub_dashboard_ser(request):
                 'chartdata': chartdata
                 }
         chartcontainer = "linewithfocuschart_container"
-        context['charttype1'] = charttype
-        context['chartdata1'] = chartdata
-        context['chartcontainer1'] = chartcontainer
-        context['extra1'] = {'x_is_date': True,
-                             'x_axis_format': '%d %b %Y',
-                             'tag_script_js': True,
-                             'jquery_on_ready': False,
-                             }
+        # context['charttype1'] = charttype
+        # context['chartdata1'] = chartdata
+        # context['chartcontainer1'] = chartcontainer
+        # context['extra1'] = {'x_is_date': True,
+        #                      'x_axis_format': '%d %b %Y',
+        #                      'tag_script_js': True,
+        #                      'jquery_on_ready': False,
+        #                      }
         print(datetime.date.today())
         today_stats = my_stat_list.filter(stat_date=datetime.date.today())
         if today_stats:
@@ -589,7 +606,7 @@ def pub_dashboard_ser(request):
         context['my_ad_list'] = False
 
     # SECOND PLOT
-    xdata, ydata = [], []
+    xdata, ydata, xdata2 = [], [], []
     for ind in range(len(my_cont_list)):
         xdata2.append(my_cont_list[ind].name)
         related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
@@ -599,25 +616,32 @@ def pub_dashboard_ser(request):
         # In the front end, sum up the correct list, round to 0 places and display.
 
     context['xdata2'] = xdata2
-    context['week_list'] = week_list
-    context['day30_list'] = day30_list
-    context['alltime_list'] = alltime_list
+    # context['week_list'] = week_list
+    # context['day30_list'] = day30_list
+    # context['alltime_list'] = alltime_list
     extra_serie1 = {"tooltip": {"y_start": "", "y_end": " cal"}}
     chartdata = {'x': xdata, 'name1': '', 'y1': ydata, 'extra1': extra_serie1,
                  }
     charttype = "discreteBarChart"
     data = {'charttype': charttype, 'chartdata': chartdata, }
     chartcontainer = "discretebarchart_container"
-    context['charttype2'] = charttype
-    context['chartdata2'] = chartdata
-    context['chartcontainer2'] = chartcontainer
-    context['extra2'] = {'x_is_date': False,
-                         'x_axis_format': '',
-                         'tag_script_js': True,
-                         'jquery_on_ready': True, }
+    # context['charttype2'] = charttype
+    # context['chartdata2'] = chartdata
+    # context['chartcontainer2'] = chartcontainer
+    # context['extra2'] = {'x_is_date': False,
+    #                      'x_axis_format': '',
+    #                      'tag_script_js': True,
+    #                      'jquery_on_ready': True, }
 
     # TODO:
+    dict1 ={}
+    dict1['abcd'] = 2
+    t2 = Adspace.objects.get(pk=1)
+    serializer = AdspaceSerializer(t2)
+    # return response.Response(serializer.data)
+    # return response.Response(JSONRenderer().render(dict1))
     return response.Response(context)
+    # return response.Response(context)
     # content = JSONRenderer().render(context)
     # return JsonResponse(content)
     # return render(request, 'pub_dashboard.html', context)
