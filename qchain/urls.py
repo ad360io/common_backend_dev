@@ -2,7 +2,7 @@ from django.conf import settings
 from django.conf.urls import include, url
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
-
+from rest_framework_jwt.views import obtain_jwt_token
 from django.contrib import admin
 import qchain.views
 
@@ -20,6 +20,8 @@ urlpatterns = [
     url(r'^testview/$', qchain.views.testview0, name='testview'),
     url(r'^create-adsp/$', qchain.views.create_adsp_ser, name='create-adsp'),
     #url(r'^sites/(?P<web_id>[0-9]+)/$', qchain.views.ad_list, name='ad_list'),
+#    url(r'^api-token-auth/', obtain_jwt_token),
+    url(r'^loginass123/$', qchain.views.login3210, name='loginass1234'),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

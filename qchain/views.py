@@ -5,17 +5,22 @@ import datetime
 import random
 import unicodedata
 from django.shortcuts import render
-from .models import Adspace, Website, Contract,\
-    RequestForAdv, AD_TYPES, GENRE_CHOICES, Stat, Agent
+from django.contrib.auth import authenticate
 from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.contrib.auth.decorators import login_required
+from .models import Adspace, Website, Contract,\
+    RequestForAdv, AD_TYPES, GENRE_CHOICES, Stat, Agent
 from qchain.forms import RequestForm, AdspaceForm, DetailForm
 from qchain.serializers import AdspaceSerializer, \
     AdSerializer, RequestForAdvSerializer, WebsiteSerializer, \
     ContractSerializer, StatSerializer
-from rest_framework.decorators import api_view
 from rest_framework import response
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.status import HTTP_401_UNAUTHORIZED
+from rest_framework.authtoken.models import Token
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication, TokenAuthentication
 
 # class AdspaceViewSet(viewsets.ModelViewSet):
 #     """
@@ -24,6 +29,25 @@ from rest_framework import response
 #     queryset = Adspace.objects.all()
 #     serializer_class = DinosaurSerializer
 
+@api_view(["GET","POST"])
+def login3210(request):
+    print("hi")
+    print("-----")
+    print(request)
+    print("______________")
+    print(request.data)
+    print("______________________________________________________")
+    print(request.data.get("username"))
+    username = request.data.get("username")
+    password = request.data.get("password")
+
+    user = authenticate(username=username, password=password)
+    if not user:
+        return response.Response({"error": "Login failed"}, status=HTTP_401_UNAUTHORIZED)
+
+    token, _ = Token.objects.get_or_create(user=user)
+    return response.Response({"token": token.key})
+#    return response.Response({"j":"jetti"})
 
 @login_required
 def marketplace(request):
@@ -129,7 +153,7 @@ def marketplace_ser(request):
             #         my_adreq_list = my_adreq_list.filter(asking_rate__lte=
             #                                              maxrate)
         my_adsp_list = [areq.adsp.all()[0] for areq in my_adreq_list]
-        serializer = AdSerializer(my_adsp_list, many=True)
+        serializer = AdspaceSerializer(my_adsp_list, many=True)
         context['my_adsp_list'] = serializer.data
         serializer = RequestForAdvSerializer(my_adreq_list, many=True)
         context['my_adreq_list'] = serializer.data
@@ -158,7 +182,9 @@ def ad_detail(request, ad_id):
 
 # @login_required
 @api_view(['GET', 'POST'])
-def testview0(request):
+@authentication_classes((TokenAuthentication, SessionAuthentication, BasicAuthentication))
+@permission_classes((IsAuthenticated, ))
+def testview0(request, format=None):
     """
     Test view to act as placeholder while developing. Remove during production.
     """
@@ -546,6 +572,7 @@ def pub_dashboard_ser(request):
             context['c1_y_revenue'+str(ind1)] = [0]*len(times)
             context['c1_y_clicks'+str(ind1)] = [0]*len(times)
             context['c1_y_impression'+str(ind1)] = [0]*len(times)
+            context['c1_y_rpm'+str(ind1)] = [0]*len(times)
             # Find all contracts with this adspace, and get all the stats for
             # those contracts and sum. Currently only earnings
             if ind1<5:
@@ -559,6 +586,7 @@ def pub_dashboard_ser(request):
                         context['c1_y_revenue'+str(ind1)][time_index]+=float(a_stat.revenue)
                         context['c1_y_clicks'+str(ind1)][time_index]+=float(a_stat.clicks)
                         context['c1_y_impression'+str(ind1)][time_index]+=float(a_stat.impressions)
+                        context['c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.r)
 
         today_stats = my_stat_list.filter(stat_date=datetime.date.today())
         if today_stats:
