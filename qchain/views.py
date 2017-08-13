@@ -4,12 +4,13 @@ import time
 import datetime
 import random
 import unicodedata
+import numpy as np
 from django.shortcuts import render
 from django.contrib.auth import authenticate
 from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.contrib.auth.decorators import login_required
-from .models import Adspace, Website, Contract,\
+from .models import Adspace, Ad, Website, Contract,\
     RequestForAdv, AD_TYPES, GENRE_CHOICES, Stat, Agent
 from qchain.forms import RequestForm, AdspaceForm, DetailForm
 from qchain.serializers import AdspaceSerializer, \
@@ -524,109 +525,417 @@ def pub_dashboard_ser(request):
     ## 5. Little green box - daily change should be calculated
 
     try:
-        # get adspaces owned by user
+        # Publisher EQC =======================================================
         t = Agent.objects.all()
-        print(t,t[2].user, type(t[2]))
+        my_cont_list = Contract.objects.filter(adspace__publisher=t[2].user,
+                                               currency=u"eqc")
+        my_adsp_list = Adspace.objects.filter(publisher=t[2].user)
+        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user)
         # my_adsp_list = Adspace.objects.filter(publisher=request.user)
         # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
         # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
-        my_adsp_list = Adspace.objects.filter(publisher=t[2].user)
-        my_cont_list = Contract.objects.filter(adspace__publisher=t[2].user)
-        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user)
-        print("Ads : ", my_adsp_list)
+        print("Adspaces : "+str(my_adsp_list))
         print("Contracts : ", my_cont_list)
-        print("Stats : ", my_stat_list)
+        # print("Stats : ", my_stat_list)
 
         ser = AdspaceSerializer(my_adsp_list, many=True)
         context['my_ad_list'] = ser.data
         # ser = ContractSerializer(my_cont_list, many=True)
         # context['my_cont_list'] = my_cont_list
+        context['pe_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
+        context['pe_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
 
-        # SUMMARY STATS
-        earnings_today = 0
-        clicks_today = 0
-        impressions_today = 0
-        earnings_30day = 0
-        clicks_30day = 0
-        impressions_30day = 0
-        # TIME SERIES PLOT
-        nb_element = 30
-
-        times = [int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]
-        times2 = [a_stat.stat_date for a_stat in my_stat_list]
+        # Times
+        times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
+        times2 = list(set([a_stat.stat_date for a_stat in my_stat_list]))
         ## SHIVA: Don't know which format you want time in, replace times with
         ## times2 in the next line if needed. Seems like times is more versatile
         ## and can be converted to other formats in front end as was happening
         ## earlier. Times2 is more restricted but is hard to transform.
-        context['c1_x'] = sorted(times)
-        context['c1_adspnames'] = []
-
+        print(times2)
+        context['pe_c1_x'] = sorted(times)
+        context['pe_c1_adspnames'] = []
+        temp = [0]*len(my_adsp_list)
+        # Find top 5 that are nonzero
         for ind1,an_adsp in enumerate(my_adsp_list):
-            context['c1_y_revenue'+str(ind1)] = [0]*len(times)
-            context['c1_y_clicks'+str(ind1)] = [0]*len(times)
-            context['c1_y_impression'+str(ind1)] = [0]*len(times)
-            context['c1_y_rpm'+str(ind1)] = [0]*len(times)
+            related_cont_list = my_cont_list.filter(adspace=an_adsp)
+            for a_cont in related_cont_list:
+                related_stat_list = my_stat_list.filter(contract=a_cont)
+                for a_stat in related_stat_list:
+                    time_index = times2.index(a_stat.stat_date)
+                    temp[ind1]+=float(a_stat.revenue)
+        print(temp)
+        chosen_inds = list(reversed(np.argsort(temp)[-5:]))
+        print("Chosen indices are : ", chosen_inds)
+        adspno = 0
+        for ind1 in range(len(chosen_inds)):
             # Find all contracts with this adspace, and get all the stats for
-            # those contracts and sum. Currently only earnings
-            if ind1<5:
-                context['c1_adspnames'].append(an_adsp.name)
-                related_cont_list = my_cont_list.filter(adspace=an_adsp)
-                for a_cont in related_cont_list:
-                    related_stat_list = my_stat_list.filter(contract=a_cont)
-                    related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
-                    for a_stat in related_stat_list:
-                        time_index = times2.index(a_stat.stat_date)
-                        context['c1_y_revenue'+str(ind1)][time_index]+=float(a_stat.revenue)
-                        context['c1_y_clicks'+str(ind1)][time_index]+=float(a_stat.clicks)
-                        context['c1_y_impression'+str(ind1)][time_index]+=float(a_stat.impressions)
-                        context['c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.r)
-
+            # those contracts and sum. Should do all the revenue sums and then add
+            # only the top 5 to the list.
+            an_adsp = my_adsp_list[chosen_inds[ind1]]
+            context['pe_c1_y_revenue'+str(ind1)] = [0]*len(times)
+            context['pe_c1_y_clicks'+str(ind1)] = [0]*len(times)
+            context['pe_c1_y_impression'+str(ind1)] = [0]*len(times)
+            context['pe_c1_y_rpm'+str(ind1)] = [0]*len(times)
+            context['pe_c1_adspnames'].append(an_adsp.name)
+            related_cont_list = my_cont_list.filter(adspace=an_adsp)
+            for a_cont in related_cont_list:
+                related_stat_list = my_stat_list.filter(contract=a_cont)
+                related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
+                for a_stat in related_stat_list:
+                    time_index = times2.index(a_stat.stat_date)
+                    context['pe_c1_y_revenue'+str(ind1)][time_index]+=float(a_stat.revenue)
+                    context['pe_c1_y_clicks'+str(ind1)][time_index]+=float(a_stat.clicks)
+                    context['pe_c1_y_impression'+str(ind1)][time_index]+=float(a_stat.impressions)
+                    context['pe_c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.rpm)
+        print(context['pe_c1_adspnames'])
         today_stats = my_stat_list.filter(stat_date=datetime.date.today())
         if today_stats:
             nstats = len(today_stats)
-            context['topstat_revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
-            context['topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
-            context['topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
-            context['topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+            context['pe_topstat_revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+            context['pe_topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
+            context['pe_topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
+            context['pe_topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
         else:
-            context['topstat_revenue_today'] = 0
-            context['topstat_clicks_today'] = 0
-            context['topstat_impressions_today'] = 0
-            context['topstat_rpm_today'] = 0
+            context['pe_topstat_revenue_today'] = 0
+            context['pe_topstat_clicks_today'] = 0
+            context['pe_topstat_impressions_today'] = 0
+            context['pe_topstat_rpm_today'] = 0
 
         month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
         if month_stats:
             nstats = len(month_stats)
-            context['topstat_revenue_30day'] = round(sum([month_stats[ind].revenue for ind in range(nstats)])/nstats,8)
-            context['topstat_clicks_30day'] =  round(sum([month_stats[ind].clicks for ind in range(nstats)])/nstats,0)
-            context['topstat_impressions_30day'] =  round(sum([month_stats[ind].impressions for ind in range(nstats)])/nstats,0)
-            context['topstat_rpm_30day'] =  round(sum([month_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+            context['pe_topstat_revenue_30day'] = round(sum([month_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+            context['pe_topstat_clicks_30day'] =  round(sum([month_stats[ind].clicks for ind in range(nstats)])/nstats,0)
+            context['pe_topstat_impressions_30day'] =  round(sum([month_stats[ind].impressions for ind in range(nstats)])/nstats,0)
+            context['pe_topstat_rpm_30day'] =  round(sum([month_stats[ind].rpm for ind in range(nstats)])/nstats,8)
         else:
-            context['topstat_revenue_30day'] = 0
-            context['topstat_clicks_30day'] = 0
-            context['topstat_impressions_30day'] = 0
-            context['topstat_rpm_30day'] = 0
+            context['pe_topstat_revenue_30day'] = 0
+            context['pe_topstat_clicks_30day'] = 0
+            context['pe_topstat_impressions_30day'] = 0
+            context['pe_topstat_rpm_30day'] = 0
+
+        xdata = []
+        context['pe_c2_y_weekrevenue'] = [0]*len(my_cont_list)
+        context['pe_c2_y_day30revenue'] = [0]*len(my_cont_list)
+        context['pe_c2_y_alltimerevenue'] = [0]*len(my_cont_list)
+        for ind in range(len(my_cont_list)):
+            xdata.append(my_cont_list[ind].name)
+            related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
+            week_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-7))
+            day30_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-30))
+            alltime_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-10000))
+            context['pe_c2_y_weekrevenue'][ind] = sum([a_stat.revenue for a_stat in week_list])
+            context['pe_c2_y_day30revenue'][ind] = sum([a_stat.revenue for a_stat in day30_list])
+            context['pe_c2_y_alltimerevenue'][ind] = sum([a_stat.revenue for a_stat in alltime_list])
+            # In the front end, sum up the correct list, round to 0 places and display.
+        context['pe_c2_xdata'] = xdata
+        print("------------------------------------------------------------------")
+        # Publisher XQC =======================================================
+        t = Agent.objects.all()
+        my_cont_list = Contract.objects.filter(adspace__publisher=t[2].user,
+                                               currency=u"xqc")
+        # my_adsp_list = Adspace.objects.filter(publisher=t[2].user)
+        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user)
+        # my_adsp_list = Adspace.objects.filter(publisher=request.user)
+        # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
+        # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
+        print("Adspaces : "+str(my_adsp_list))
+        print("Contracts : ", my_cont_list)
+        # print("Stats : ", my_stat_list)
+
+        ser = AdspaceSerializer(my_adsp_list, many=True)
+        context['my_adsp_list'] = ser.data
+        # ser = ContractSerializer(my_cont_list, many=True)
+        # context['my_cont_list'] = my_cont_list
+        context['px_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
+        context['px_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
+
+        # Times
+        times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
+        times2 = list(set([a_stat.stat_date for a_stat in my_stat_list]))
+        ## SHIVA: Don't know which format you want time in, replace times with
+        ## times2 in the next line if needed. Seems like times is more versatile
+        ## and can be converted to other formats in front end as was happening
+        ## earlier. Times2 is more restricted but is hard to transform.
+        print(times2)
+        context['px_c1_x'] = sorted(times)
+        context['px_c1_adspnames'] = []
+        temp = [0]*len(my_adsp_list)
+        # Find top 5 that are nonzero
+        for ind1,an_adsp in enumerate(my_adsp_list):
+            related_cont_list = my_cont_list.filter(adspace=an_adsp)
+            for a_cont in related_cont_list:
+                related_stat_list = my_stat_list.filter(contract=a_cont)
+                for a_stat in related_stat_list:
+                    time_index = times2.index(a_stat.stat_date)
+                    temp[ind1]+=float(a_stat.revenue)
+        print(temp)
+        chosen_inds = list(reversed(np.argsort(temp)[-5:]))
+        print("Chosen indices are : ", chosen_inds)
+        adspno = 0
+        for ind1 in range(len(chosen_inds)):
+            # Find all contracts with this adspace, and get all the stats for
+            # those contracts and sum. Should do all the revenue sums and then add
+            # only the top 5 to the list.
+            an_adsp = my_adsp_list[chosen_inds[ind1]]
+            context['px_c1_y_revenue'+str(ind1)] = [0]*len(times)
+            context['px_c1_y_clicks'+str(ind1)] = [0]*len(times)
+            context['px_c1_y_impression'+str(ind1)] = [0]*len(times)
+            context['px_c1_y_rpm'+str(ind1)] = [0]*len(times)
+            context['px_c1_adspnames'].append(an_adsp.name)
+            related_cont_list = my_cont_list.filter(adspace=an_adsp)
+            for a_cont in related_cont_list:
+                related_stat_list = my_stat_list.filter(contract=a_cont)
+                related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
+                for a_stat in related_stat_list:
+                    time_index = times2.index(a_stat.stat_date)
+                    context['px_c1_y_revenue'+str(ind1)][time_index]+=float(a_stat.revenue)
+                    context['px_c1_y_clicks'+str(ind1)][time_index]+=float(a_stat.clicks)
+                    context['px_c1_y_impression'+str(ind1)][time_index]+=float(a_stat.impressions)
+                    context['px_c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.rpm)
+        print(context['px_c1_adspnames'])
+        today_stats = my_stat_list.filter(stat_date=datetime.date.today())
+        if today_stats:
+            nstats = len(today_stats)
+            context['px_topstat_revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+            context['px_topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
+            context['px_topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
+            context['px_topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+        else:
+            context['px_topstat_revenue_today'] = 0
+            context['px_topstat_clicks_today'] = 0
+            context['px_topstat_impressions_today'] = 0
+            context['px_topstat_rpm_today'] = 0
+
+        month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
+        if month_stats:
+            nstats = len(month_stats)
+            context['px_topstat_revenue_30day'] = round(sum([month_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+            context['px_topstat_clicks_30day'] =  round(sum([month_stats[ind].clicks for ind in range(nstats)])/nstats,0)
+            context['px_topstat_impressions_30day'] =  round(sum([month_stats[ind].impressions for ind in range(nstats)])/nstats,0)
+            context['px_topstat_rpm_30day'] =  round(sum([month_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+        else:
+            context['px_topstat_revenue_30day'] = 0
+            context['px_topstat_clicks_30day'] = 0
+            context['px_topstat_impressions_30day'] = 0
+            context['px_topstat_rpm_30day'] = 0
+
+        xdata = []
+        context['px_c2_y_weekrevenue'] = [0]*len(my_cont_list)
+        context['px_c2_y_day30revenue'] = [0]*len(my_cont_list)
+        context['px_c2_y_alltimerevenue'] = [0]*len(my_cont_list)
+        for ind in range(len(my_cont_list)):
+            xdata.append(my_cont_list[ind].name)
+            related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
+            week_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-7))
+            day30_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-30))
+            alltime_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-10000))
+            context['px_c2_y_weekrevenue'][ind] = sum([a_stat.revenue for a_stat in week_list])
+            context['px_c2_y_day30revenue'][ind] = sum([a_stat.revenue for a_stat in day30_list])
+            context['px_c2_y_alltimerevenue'][ind] = sum([a_stat.revenue for a_stat in alltime_list])
+            # In the front end, sum up the correct list, round to 0 places and display.
+        context['px_c2_xdata'] = xdata
+        print("------------------------------------------------------------------")
+
+
+        # # Advertiser EQC =======================================================
+        t = Agent.objects.all()
+        my_cont_list = Contract.objects.filter(ad__advertiser=t[1].user,
+                                               currency=u"eqc")
+        my_ad_list = Ad.objects.filter(advertiser=t[1].user)
+        my_stat_list = Stat.objects.filter(contract__ad__advertiser=t[1].user)
+        # my_adsp_list = Adspace.objects.filter(publisher=request.user)
+        # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
+        # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
+        print("Ads : "+str(my_ad_list))
+        print("Contracts : ", my_cont_list)
+        print("Stats : ", my_stat_list)
+
+        ser = AdSerializer(my_ad_list, many=True)
+        context['my_ad_list'] = ser.data
+        context['ae_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
+        context['ae_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
+
+        # Times
+        times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
+        times2 = list(set([a_stat.stat_date for a_stat in my_stat_list]))
+        print(times2)
+        context['ae_c1_x'] = sorted(times)
+        context['ae_c1_adnames'] = []
+        temp = [0]*len(my_adsp_list)
+        # Find top 5 ranked by no. of clicks
+        for ind1,an_ad in enumerate(my_ad_list):
+            related_cont_list = my_cont_list.filter(ad=an_ad)
+            for a_cont in related_cont_list:
+                related_stat_list = my_stat_list.filter(contract=a_cont)
+                for a_stat in related_stat_list:
+                    time_index = times2.index(a_stat.stat_date)
+                    temp[ind1]+=float(a_stat.clicks)
+        print(temp)
+        chosen_inds = list(reversed(np.argsort(temp)[-5:]))
+        print("Chosen indices are : ", chosen_inds)
+        adspno = 0
+        for ind1 in range(len(chosen_inds)):
+            # Find all contracts with this ad, and get all the stats for
+            # those contracts and sum. Should do all the clicks sums and then add
+            # only the top 5 to the list.
+            an_adsp = my_ad_list[chosen_inds[ind1]]
+            context['ae_c1_y_clicks'+str(ind1)] = [0]*len(times)
+            context['ae_c1_y_impression'+str(ind1)] = [0]*len(times)
+            # context['ae_c1_y_rpm'+str(ind1)] = [0]*len(times)
+            context['ae_c1_adnames'].append(an_ad.name)
+            related_cont_list = my_cont_list.filter(ad=an_ad)
+            for a_cont in related_cont_list:
+                related_stat_list = my_stat_list.filter(contract=a_cont)
+                related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
+                for a_stat in related_stat_list:
+                    time_index = times2.index(a_stat.stat_date)
+                    context['ae_c1_y_clicks'+str(ind1)][time_index]+=float(a_stat.clicks)
+                    context['ae_c1_y_impression'+str(ind1)][time_index]+=float(a_stat.impressions)
+                    # context['ae_c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.rpm)
+        print(context['ae_c1_adnames'])
+        today_stats = my_stat_list.filter(stat_date=datetime.date.today())
+        if today_stats:
+            nstats = len(today_stats)
+            context['ae_topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
+            context['ae_topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
+            # context['ae_topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+        else:
+            context['ae_topstat_clicks_today'] = 0
+            context['ae_topstat_impressions_today'] = 0
+            # context['ae_topstat_rpm_today'] = 0
+
+        month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
+        if month_stats:
+            nstats = len(month_stats)
+            context['ae_topstat_clicks_30day'] =  round(sum([month_stats[ind].clicks for ind in range(nstats)])/nstats,0)
+            context['ae_topstat_impressions_30day'] =  round(sum([month_stats[ind].impressions for ind in range(nstats)])/nstats,0)
+            # context['ae_topstat_rpm_30day'] =  round(sum([month_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+        else:
+            context['ae_topstat_clicks_30day'] = 0
+            context['ae_topstat_impressions_30day'] = 0
+            # context['ae_topstat_rpm_30day'] = 0
+
+        xdata = []
+        context['ae_c2_y_weekclicks'] = [0]*len(my_cont_list)
+        context['ae_c2_y_day30clicks'] = [0]*len(my_cont_list)
+        context['ae_c2_y_alltimeclicks'] = [0]*len(my_cont_list)
+        for ind in range(len(my_cont_list)):
+            xdata.append(my_cont_list[ind].name)
+            related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
+            week_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-7))
+            day30_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-30))
+            alltime_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-10000))
+            context['ae_c2_y_weekclicks'][ind] = sum([a_stat.clicks for a_stat in week_list])
+            context['ae_c2_y_day30clicks'][ind] = sum([a_stat.clicks for a_stat in day30_list])
+            context['ae_c2_y_alltimeclicks'][ind] = sum([a_stat.clicks for a_stat in alltime_list])
+            # In the front end, sum up the correct list, round to 0 places and display.
+        context['ae_c2_xdata'] = xdata
+        print("------------------------------------------------------------------")
+
+
+        # # Advertiser XQC =======================================================
+        t = Agent.objects.all()
+        my_cont_list = Contract.objects.filter(ad__advertiser=t[1].user,
+                                               currency=u"xqc")
+        my_ad_list = Ad.objects.filter(advertiser=t[1].user)
+        my_stat_list = Stat.objects.filter(contract__ad__advertiser=t[1].user)
+        # my_adsp_list = Adspace.objects.filter(publisher=request.user)
+        # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
+        # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
+        print("Ads : "+str(my_ad_list))
+        print("Contracts : ", my_cont_list)
+        print("Stats : ", my_stat_list)
+
+        ser = AdSerializer(my_ad_list, many=True)
+        context['my_ad_list'] = ser.data
+        context['ae_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
+        context['ae_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
+
+        # Times
+        times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
+        times2 = list(set([a_stat.stat_date for a_stat in my_stat_list]))
+        print(times2)
+        context['ax_c1_x'] = sorted(times)
+        context['ax_c1_adnames'] = []
+        temp = [0]*len(my_adsp_list)
+        # Find top 5 ranked by no. of clicks
+        for ind1,an_ad in enumerate(my_ad_list):
+            related_cont_list = my_cont_list.filter(ad=an_ad)
+            for a_cont in related_cont_list:
+                related_stat_list = my_stat_list.filter(contract=a_cont)
+                for a_stat in related_stat_list:
+                    time_index = times2.index(a_stat.stat_date)
+                    temp[ind1]+=float(a_stat.clicks)
+        print(temp)
+        chosen_inds = list(reversed(np.argsort(temp)[-5:]))
+        print("Chosen indices are : ", chosen_inds)
+        adspno = 0
+        for ind1 in range(len(chosen_inds)):
+            # Find all contracts with this ad, and get all the stats for
+            # those contracts and sum. Should do all the clicks sums and then add
+            # only the top 5 to the list.
+            an_adsp = my_ad_list[chosen_inds[ind1]]
+            context['ax_c1_y_clicks'+str(ind1)] = [0]*len(times)
+            context['ax_c1_y_impression'+str(ind1)] = [0]*len(times)
+            # context['ax_c1_y_rpm'+str(ind1)] = [0]*len(times)
+            context['ax_c1_adnames'].append(an_ad.name)
+            related_cont_list = my_cont_list.filter(ad=an_ad)
+            for a_cont in related_cont_list:
+                related_stat_list = my_stat_list.filter(contract=a_cont)
+                related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
+                for a_stat in related_stat_list:
+                    time_index = times2.index(a_stat.stat_date)
+                    context['ax_c1_y_clicks'+str(ind1)][time_index]+=float(a_stat.clicks)
+                    context['ax_c1_y_impression'+str(ind1)][time_index]+=float(a_stat.impressions)
+                    # context['ax_c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.rpm)
+        print(context['ax_c1_adnames'])
+        today_stats = my_stat_list.filter(stat_date=datetime.date.today())
+        if today_stats:
+            nstats = len(today_stats)
+            context['ax_topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
+            context['ax_topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
+            # context['ax_topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+        else:
+            context['ax_topstat_clicks_today'] = 0
+            context['ax_topstat_impressions_today'] = 0
+            # context['ax_topstat_rpm_today'] = 0
+
+        month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
+        if month_stats:
+            nstats = len(month_stats)
+            context['ax_topstat_clicks_30day'] =  round(sum([month_stats[ind].clicks for ind in range(nstats)])/nstats,0)
+            context['ax_topstat_impressions_30day'] =  round(sum([month_stats[ind].impressions for ind in range(nstats)])/nstats,0)
+            # context['ax_topstat_rpm_30day'] =  round(sum([month_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+        else:
+            context['ax_topstat_clicks_30day'] = 0
+            context['ax_topstat_impressions_30day'] = 0
+            # context['ax_topstat_rpm_30day'] = 0
+
+        xdata = []
+        context['ax_c2_y_weekclicks'] = [0]*len(my_cont_list)
+        context['ax_c2_y_day30clicks'] = [0]*len(my_cont_list)
+        context['ax_c2_y_alltimeclicks'] = [0]*len(my_cont_list)
+        for ind in range(len(my_cont_list)):
+            xdata.append(my_cont_list[ind].name)
+            related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
+            week_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-7))
+            day30_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-30))
+            alltime_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-10000))
+            context['ax_c2_y_weekclicks'][ind] = sum([a_stat.clicks for a_stat in week_list])
+            context['ax_c2_y_day30clicks'][ind] = sum([a_stat.clicks for a_stat in day30_list])
+            context['ax_c2_y_alltimeclicks'][ind] = sum([a_stat.clicks for a_stat in alltime_list])
+            # In the front end, sum up the correct list, round to 0 places and display.
+        context['ax_c2_xdata'] = xdata
+        print("------------------------------------------------------------------")
 
     except Adspace.DoesNotExist:
         context['is_error'] = "No adspaces found"
 
-    # SECOND PLOT
-    xdata = []
-    context['c2_y_weekrevenue'] = [0]*len(my_cont_list)
-    context['c2_y_day30revenue'] = [0]*len(my_cont_list)
-    context['c2_y_alltimerevenue'] = [0]*len(my_cont_list)
-    for ind in range(len(my_cont_list)):
-        xdata.append(my_cont_list[ind].name)
-        related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
-        week_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-7))
-        day30_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-30))
-        alltime_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-10000))
-        context['c2_y_weekrevenue'][ind] = sum([a_stat.revenue for a_stat in week_list])
-        context['c2_y_day30revenue'][ind] = sum([a_stat.revenue for a_stat in day30_list])
-        context['c2_y_alltimerevenue'][ind] = sum([a_stat.revenue for a_stat in alltime_list])
-        # In the front end, sum up the correct list, round to 0 places and display.
 
-    context['c2_xdata'] = xdata
+
+
 
     return response.Response(context)
 
