@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, DecimalValidator
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
-
+from decimal import Decimal
 AD_TYPES = (('btw', 'ban_top_wide'), ('br', 'ban_right'),
             ('popup', 'popup'), ('bl', 'ban_left'))
 AD_TYPES_rev = (('ban_top_wide', 'btw'),('ban_right', 'br'),('popup', 'popup'),
@@ -26,6 +26,16 @@ class Agent(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     birthdate = models.DateField(null=True)
     bio = models.CharField(max_length=SHORT_TXT_LENGTH, null=True)
+    e_balance = models.DecimalField(default= Decimal('0.00000000'),
+                                    max_digits=MAX_DIGITS,
+                                    decimal_places=DECIMAL_PLACES,
+                                    validators=[DecimalValidator(MAX_DIGITS,
+                                                                 DECIMAL_PLACES)])
+    x_balance = models.DecimalField(default= Decimal('0.00000000'),
+                                    max_digits=MAX_DIGITS,
+                                    decimal_places=DECIMAL_PLACES,
+                                    validators=[DecimalValidator(MAX_DIGITS,
+                                                                 DECIMAL_PLACES)])
     def __str__(self):
         return self.user.username
 
@@ -162,6 +172,17 @@ class RequestForAdv(models.Model):
         if self.ask_date_from >= self.ask_date_to:
             raise ValidationError(_('From date should preceed to date.'))
 
+
+# class Cryptoken(models.Model):
+#     """
+#     Class for storing balances and other crypto token information.
+#     """
+#     currency = models.CharField(max_length=4,
+#                                 choices=(("eqc", "EQC"), ("xqc", "XQC")))
+#     token_val = models.DecimalField(max_digits=MAX_DIGITS,
+#                                     decimal_places=DECIMAL_PLACES,
+#                                     validators=[DecimalValidator(MAX_DIGITS,
+#                                                                  DECIMAL_PLACES)])
 # class RequestForAdsp(models.Model):
 #     """
 #     Class for request for an adspace from an advertiser.

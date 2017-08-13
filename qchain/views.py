@@ -31,13 +31,6 @@ from rest_framework.authentication import SessionAuthentication, BasicAuthentica
 
 @api_view(["GET","POST"])
 def login3210(request):
-    print("hi")
-    print("-----")
-    print(request)
-    print("______________")
-    print(request.data)
-    print("______________________________________________________")
-    print(request.data.get("username"))
     username = request.data.get("username")
     password = request.data.get("password")
 
@@ -524,8 +517,8 @@ def pub_dashboard_ser(request):
     print("Got to pub_dashboard_ser")
     # print("User is  : ",request.user)
     ## TODO
-    ## 1. Make this work with request.user (Django Sessions)
-    ## 2. Fill up more data
+    ## 1. Make this work with request.user (Django Sessions) - DONE
+    ## 2. Fill up more data - DONE but more required
     ## 3. Add a balance and account number to the profile.
     ## 4. Verify filters and sent data when awake :D
     ## 5. Little green box - daily change should be calculated
