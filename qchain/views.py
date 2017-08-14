@@ -538,7 +538,8 @@ def pub_dashboard_ser(request):
         till  = today.replace(month=today.month-1)
         my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user,
                                            stat_date__lte=today,
-                                           stat_date__gte=till)
+                                           stat_date__gte=till,
+                                           contract__currency=u"eqc")
         # my_adsp_list = Adspace.objects.filter(publisher=request.user)
         # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
         # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
@@ -604,17 +605,26 @@ def pub_dashboard_ser(request):
                     context['pe_c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.rpm)
         print(context['pe_c1_adspnames'])
         today_stats = my_stat_list.filter(stat_date=datetime.date.today())
+        yest_stats = my_stat_list.filter(stat_date=today.replace(day=today.day-1))
         if today_stats:
             nstats = len(today_stats)
             context['pe_topstat_revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
             context['pe_topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
             context['pe_topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
             context['pe_topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+            context['pe_topstat_revenue_change'] = round(sum([today_stats[ind].revenue-yest_stats[ind].revenue for ind in range(nstats)])/nstats,2)
+            context['pe_topstat_clicks_change'] = round(sum([today_stats[ind].clicks-yest_stats[ind].clicks for ind in range(nstats)])/nstats,2)
+            context['pe_topstat_impressions_change'] = round(sum([today_stats[ind].impressions-yest_stats[ind].impressions for ind in range(nstats)])/nstats,2)
+            context['pe_topstat_rpm_change'] = round(sum([today_stats[ind].rpm-yest_stats[ind].rpm for ind in range(nstats)])/nstats,2)
         else:
             context['pe_topstat_revenue_today'] = 0
             context['pe_topstat_clicks_today'] = 0
             context['pe_topstat_impressions_today'] = 0
             context['pe_topstat_rpm_today'] = 0
+            context['pe_topstat_revenue_change'] = 0
+            context['pe_topstat_clicks_change'] = 0
+            context['pe_topstat_impressions_change'] = 0
+            context['pe_topstat_rpm_change'] = 0
 
         month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
         if month_stats:
@@ -649,6 +659,10 @@ def pub_dashboard_ser(request):
         t = Agent.objects.all()
         my_cont_list = Contract.objects.filter(adspace__publisher=t[2].user,
                                                currency=u"xqc")
+        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user,
+                                           stat_date__lte=today,
+                                           stat_date__gte=till,
+                                           contract__currency=u"xqc")
         # my_adsp_list = Adspace.objects.filter(publisher=t[2].user)
         # my_adsp_list = Adspace.objects.filter(publisher=request.user)
         # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
@@ -715,17 +729,26 @@ def pub_dashboard_ser(request):
                     context['px_c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.rpm)
         print(context['px_c1_adspnames'])
         today_stats = my_stat_list.filter(stat_date=datetime.date.today())
+        yest_stats = my_stat_list.filter(stat_date=today.replace(day=today.day-1))
         if today_stats:
             nstats = len(today_stats)
             context['px_topstat_revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
             context['px_topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
             context['px_topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
             context['px_topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+            context['px_topstat_revenue_change'] = round(sum([today_stats[ind].revenue-yest_stats[ind].revenue for ind in range(nstats)])/nstats,2)
+            context['px_topstat_clicks_change'] = round(sum([today_stats[ind].clicks-yest_stats[ind].clicks for ind in range(nstats)])/nstats,2)
+            context['px_topstat_impressions_change'] = round(sum([today_stats[ind].impressions-yest_stats[ind].impressions for ind in range(nstats)])/nstats,2)
+            context['px_topstat_rpm_change'] = round(sum([today_stats[ind].rpm-yest_stats[ind].rpm for ind in range(nstats)])/nstats,2)
         else:
             context['px_topstat_revenue_today'] = 0
             context['px_topstat_clicks_today'] = 0
             context['px_topstat_impressions_today'] = 0
             context['px_topstat_rpm_today'] = 0
+            context['px_topstat_revenue_change'] = 0
+            context['px_topstat_clicks_change'] = 0
+            context['px_topstat_impressions_change'] = 0
+            context['px_topstat_rpm_change'] = 0
 
         month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
         if month_stats:
@@ -765,7 +788,8 @@ def pub_dashboard_ser(request):
         my_ad_list = Ad.objects.filter(advertiser=t[1].user)
         my_stat_list = Stat.objects.filter(contract__ad__advertiser=t[1].user,
                                            stat_date__lte=today,
-                                           stat_date__gte=till)
+                                           stat_date__gte=till,
+                                           contract__currency=u"eqc")
         # my_adsp_list = Adspace.objects.filter(publisher=request.user)
         # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
         # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
@@ -829,10 +853,14 @@ def pub_dashboard_ser(request):
             context['ae_topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
             context['ae_topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
             # context['ae_topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+            context['ae_topstat_clicks_change'] = round(sum([today_stats[ind].clicks-yest_stats[ind].clicks for ind in range(nstats)])/nstats,2)
+            context['ae_topstat_impressions_change'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,2)
         else:
             context['ae_topstat_clicks_today'] = 0
             context['ae_topstat_impressions_today'] = 0
             # context['ae_topstat_rpm_today'] = 0
+            context['ae_topstat_clicks_change'] = 0
+            context['ae_topstat_impressions_change'] = 0
 
         month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
         if month_stats:
@@ -867,7 +895,10 @@ def pub_dashboard_ser(request):
         t = Agent.objects.all()
         my_cont_list = Contract.objects.filter(ad__advertiser=t[1].user,
                                                currency=u"xqc")
-        my_ad_list = Ad.objects.filter(advertiser=t[1].user)
+        my_stat_list = Stat.objects.filter(contract__ad__advertiser=t[1].user,
+                                           stat_date__lte=today,
+                                           stat_date__gte=till,
+                                           contract__currency=u"eqc")
         # my_adsp_list = Adspace.objects.filter(publisher=request.user)
         # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
         # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
@@ -925,15 +956,20 @@ def pub_dashboard_ser(request):
                     # context['ax_c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.rpm)
         print(context['ax_c1_adnames'])
         today_stats = my_stat_list.filter(stat_date=datetime.date.today())
+        yest_stats = my_stat_list.filter(stat_date=today.replace(day=today.day-1))
         if today_stats:
             nstats = len(today_stats)
             context['ax_topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
             context['ax_topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
             # context['ax_topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+            context['ax_topstat_clicks_change'] = round(sum([today_stats[ind].clicks-yest_stats[ind].clicks for ind in range(nstats)])/nstats,2)
+            context['ax_topstat_impressions_change'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,2)
         else:
             context['ax_topstat_clicks_today'] = 0
             context['ax_topstat_impressions_today'] = 0
             # context['ax_topstat_rpm_today'] = 0
+            context['ax_topstat_clicks_change'] = 0
+            context['ax_topstat_impressions_change'] = 0
 
         month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
         if month_stats:
