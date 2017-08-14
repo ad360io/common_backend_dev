@@ -525,8 +525,12 @@ def pub_dashboard_ser(request):
     ## 5. Little green box - daily change should be calculated
 
     try:
-        # Publisher EQC =======================================================
         t = Agent.objects.all()
+        context['pe_balance'] = t[2].e_balance
+        context['px_balance'] = t[2].x_balance
+        context['ae_balance'] = t[1].e_balance
+        context['ax_balance'] = t[1].x_balance
+        # Publisher EQC =======================================================
         my_cont_list = Contract.objects.filter(adspace__publisher=t[2].user,
                                                currency=u"eqc")
         my_adsp_list = Adspace.objects.filter(publisher=t[2].user)
@@ -538,12 +542,15 @@ def pub_dashboard_ser(request):
         print("Contracts : ", my_cont_list)
         # print("Stats : ", my_stat_list)
 
-        ser = AdspaceSerializer(my_adsp_list, many=True)
-        context['my_ad_list'] = ser.data
+        # ser = AdspaceSerializer(my_adsp_list, many=True)
+        # context['my_ad_list'] = ser.data
         # ser = ContractSerializer(my_cont_list, many=True)
         # context['my_cont_list'] = my_cont_list
         context['pe_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
         context['pe_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
+        context['pe_t1_col1'] = []
+        context['pe_t1_col2'] = []
+        context['pe_t1_col3'] = []
 
         # Times
         times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
@@ -573,6 +580,9 @@ def pub_dashboard_ser(request):
             # those contracts and sum. Should do all the revenue sums and then add
             # only the top 5 to the list.
             an_adsp = my_adsp_list[chosen_inds[ind1]]
+            context['pe_t1_col1'].append(str(an_adsp.website))
+            context['pe_t1_col2'].append(str(an_adsp.adtype))
+            context['pe_t1_col3'].append(str(an_adsp.genre))
             context['pe_c1_y_revenue'+str(ind1)] = [0]*len(times)
             context['pe_c1_y_clicks'+str(ind1)] = [0]*len(times)
             context['pe_c1_y_impression'+str(ind1)] = [0]*len(times)
@@ -644,12 +654,15 @@ def pub_dashboard_ser(request):
         print("Contracts : ", my_cont_list)
         # print("Stats : ", my_stat_list)
 
-        ser = AdspaceSerializer(my_adsp_list, many=True)
-        context['my_adsp_list'] = ser.data
+        # ser = AdspaceSerializer(my_adsp_list, many=True)
+        # context['my_adsp_list'] = ser.data
         # ser = ContractSerializer(my_cont_list, many=True)
         # context['my_cont_list'] = my_cont_list
         context['px_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
         context['px_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
+        context['px_t1_col1'] = []
+        context['px_t1_col2'] = []
+        context['px_t1_col3'] = []
 
         # Times
         times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
@@ -679,6 +692,9 @@ def pub_dashboard_ser(request):
             # those contracts and sum. Should do all the revenue sums and then add
             # only the top 5 to the list.
             an_adsp = my_adsp_list[chosen_inds[ind1]]
+            context['px_t1_col1'].append(str(an_adsp.website))
+            context['px_t1_col2'].append(str(an_adsp.adtype))
+            context['px_t1_col3'].append(str(an_adsp.genre))
             context['px_c1_y_revenue'+str(ind1)] = [0]*len(times)
             context['px_c1_y_clicks'+str(ind1)] = [0]*len(times)
             context['px_c1_y_impression'+str(ind1)] = [0]*len(times)
@@ -739,7 +755,7 @@ def pub_dashboard_ser(request):
         print("------------------------------------------------------------------")
 
 
-        # # Advertiser EQC =======================================================
+        # Advertiser EQC =======================================================
         t = Agent.objects.all()
         my_cont_list = Contract.objects.filter(ad__advertiser=t[1].user,
                                                currency=u"eqc")
@@ -752,10 +768,13 @@ def pub_dashboard_ser(request):
         print("Contracts : ", my_cont_list)
         print("Stats : ", my_stat_list)
 
-        ser = AdSerializer(my_ad_list, many=True)
-        context['my_ad_list'] = ser.data
+        # ser = AdSerializer(my_ad_list, many=True)
+        # context['my_ad_list'] = ser.data
         context['ae_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
         context['ae_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
+        context['ae_t1_col1'] = []
+        context['ae_t1_col2'] = []
+        context['ae_t1_col3'] = []
 
         # Times
         times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
@@ -780,12 +799,16 @@ def pub_dashboard_ser(request):
             # Find all contracts with this ad, and get all the stats for
             # those contracts and sum. Should do all the clicks sums and then add
             # only the top 5 to the list.
-            an_adsp = my_ad_list[chosen_inds[ind1]]
+            an_ad = my_ad_list[chosen_inds[ind1]]
+            context['ae_t1_col1'].append(an_ad.name)
+            context['ae_t1_col2'].append(an_ad.adtype)
+            context['ae_t1_col3'].append(an_ad.genre)
             context['ae_c1_y_clicks'+str(ind1)] = [0]*len(times)
             context['ae_c1_y_impression'+str(ind1)] = [0]*len(times)
             # context['ae_c1_y_rpm'+str(ind1)] = [0]*len(times)
             context['ae_c1_adnames'].append(an_ad.name)
             related_cont_list = my_cont_list.filter(ad=an_ad)
+            print(ind1, related_cont_list)
             for a_cont in related_cont_list:
                 related_stat_list = my_stat_list.filter(contract=a_cont)
                 related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
@@ -848,10 +871,13 @@ def pub_dashboard_ser(request):
         print("Contracts : ", my_cont_list)
         print("Stats : ", my_stat_list)
 
-        ser = AdSerializer(my_ad_list, many=True)
-        context['my_ad_list'] = ser.data
-        context['ae_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
-        context['ae_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
+        # ser = AdSerializer(my_ad_list, many=True)
+        # context['my_ad_list'] = ser.data
+        context['ax_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
+        context['ax_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
+        context['ax_t1_col1'] = []
+        context['ax_t1_col2'] = []
+        context['ax_t1_col3'] = []
 
         # Times
         times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
@@ -876,7 +902,10 @@ def pub_dashboard_ser(request):
             # Find all contracts with this ad, and get all the stats for
             # those contracts and sum. Should do all the clicks sums and then add
             # only the top 5 to the list.
-            an_adsp = my_ad_list[chosen_inds[ind1]]
+            an_ad = my_ad_list[chosen_inds[ind1]]
+            context['ax_t1_col1'].append(an_ad.name)
+            context['ax_t1_col2'].append(an_ad.adtype)
+            context['ax_t1_col3'].append(an_ad.genre)
             context['ax_c1_y_clicks'+str(ind1)] = [0]*len(times)
             context['ax_c1_y_impression'+str(ind1)] = [0]*len(times)
             # context['ax_c1_y_rpm'+str(ind1)] = [0]*len(times)
