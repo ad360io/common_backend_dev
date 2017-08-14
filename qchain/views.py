@@ -534,7 +534,11 @@ def pub_dashboard_ser(request):
         my_cont_list = Contract.objects.filter(adspace__publisher=t[2].user,
                                                currency=u"eqc")
         my_adsp_list = Adspace.objects.filter(publisher=t[2].user)
-        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user)
+        today = datetime.date.today()
+        till  = today.replace(month=today.month-1)
+        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user,
+                                           stat_date__lte=today,
+                                           stat_date__gte=till)
         # my_adsp_list = Adspace.objects.filter(publisher=request.user)
         # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
         # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
@@ -559,7 +563,7 @@ def pub_dashboard_ser(request):
         ## times2 in the next line if needed. Seems like times is more versatile
         ## and can be converted to other formats in front end as was happening
         ## earlier. Times2 is more restricted but is hard to transform.
-        print(times2)
+        print(sorted(times2))
         context['pe_c1_x'] = sorted(times)
         context['pe_c1_adspnames'] = []
         temp = [0]*len(my_adsp_list)
@@ -646,7 +650,6 @@ def pub_dashboard_ser(request):
         my_cont_list = Contract.objects.filter(adspace__publisher=t[2].user,
                                                currency=u"xqc")
         # my_adsp_list = Adspace.objects.filter(publisher=t[2].user)
-        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user)
         # my_adsp_list = Adspace.objects.filter(publisher=request.user)
         # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
         # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
@@ -760,7 +763,9 @@ def pub_dashboard_ser(request):
         my_cont_list = Contract.objects.filter(ad__advertiser=t[1].user,
                                                currency=u"eqc")
         my_ad_list = Ad.objects.filter(advertiser=t[1].user)
-        my_stat_list = Stat.objects.filter(contract__ad__advertiser=t[1].user)
+        my_stat_list = Stat.objects.filter(contract__ad__advertiser=t[1].user,
+                                           stat_date__lte=today,
+                                           stat_date__gte=till)
         # my_adsp_list = Adspace.objects.filter(publisher=request.user)
         # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
         # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
@@ -863,7 +868,6 @@ def pub_dashboard_ser(request):
         my_cont_list = Contract.objects.filter(ad__advertiser=t[1].user,
                                                currency=u"xqc")
         my_ad_list = Ad.objects.filter(advertiser=t[1].user)
-        my_stat_list = Stat.objects.filter(contract__ad__advertiser=t[1].user)
         # my_adsp_list = Adspace.objects.filter(publisher=request.user)
         # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
         # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
