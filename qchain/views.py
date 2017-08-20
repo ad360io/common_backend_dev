@@ -10,7 +10,7 @@ from django.contrib.auth import authenticate
 from django.http import HttpResponse, JsonResponse
 from django.template import loader
 from django.contrib.auth.decorators import login_required
-from .models import Adspace, Ad, Website, Contract,\
+from qchain.models import Adspace, Ad, Website, Contract,\
     RequestForAdv, AD_TYPES, GENRE_CHOICES, Stat, Agent
 from qchain.forms import RequestForm, AdspaceForm, DetailForm
 from qchain.serializers import AdspaceSerializer, \
@@ -37,7 +37,7 @@ def login3210(request):
 
     user = authenticate(username=username, password=password)
     if not user:
-        return response.Response({"error": "Login failed"}, status=HTTP_401_UNAUTHORIZED)
+        return response.Response({"error": "Login failed"})
 
     token, _ = Token.objects.get_or_create(user=user)
     return response.Response({"token": token.key})
@@ -310,205 +310,270 @@ def create_adsp_ser(request):
 
     return render(request, 'create_adsp.html')
 
-
-@login_required
-def pub_dashboard(request, ctype1=0, ctype2=0):
+@api_view(['GET', 'POST'])
+def pub_dashboard_charts(request):
     """
-    Publisher dashboard.
+    Publisher dashboard to work with angular but componentized.
     """
     context = {}
-    #try:
-        # # get websites owned by user
-        #my_website_list = Website.objects.filter(user=request.user)
-        #context['my_website_list'] = my_website_list
-    #except Website.DoesNotExist:
-        #context['my_website_list'] = False
-    print("Got to pub_dashboard")
-    print("User is  : ",request.user)
-    print("Ctype1 : ",ctype1)
-    print("Ctype2 : ",ctype2)
+    # print("User is  : ",request.user)
+    ## TODO
+    ## 1. Make this work with request.user (Django Sessions) - DONE
+    ## 2. Fill up more data - DONE but more required
+    ## 3. Add a balance and account number to the profile.
+    ## 4. Verify filters and sent data when awake :D
+    ## 5. Little green box - daily change should be calculated
+    print("-----------------------------------------------------------------")
+    if request.method=="POST":
+        print("It was post")
+        currency_tag = request.POST[u'currency']
+        print("Currency is : ", type(request.POST[u'currency']))
+    else:
+        print("It was not post")
+    print("-------------------------------------------------------------------")
+
     try:
-        # GET ADSPACES AND DATA ANALYSIS
-        # get adspaces owned by user
-        my_adsp_list = Adspace.objects.filter(publisher=request.user)
-        my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
-        my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
-        print("Ads : ", my_adsp_list)
+        # Publisher EQC =======================================================
+        t = Agent.objects.all() # 1- team, 2 advertiser1, 3 is publisher1
+        #python indexes from 0
+        # returns a list
+        my_cont_list = Contract.objects.filter(adspace__publisher=t[2].user,
+                                               currency=currency_tag)
+        # filter out a subset of objects
+        # if make change to models, do 'makemigations' and then 'migrate'
+        # contract has adspace, adspace hath publisher
+        # "" - basic STRING
+        # u"" - unicode string
+        my_adsp_list = Adspace.objects.filter(publisher=t[2].user)
+        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user,
+                                           contract__currency=currency_tag)
+        # all of these are Python Lists
+        # my_adsp_list = Adspace.objects.filter(publisher=request.user)
+        # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
+        # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
+        print("Adspaces : "+str(my_adsp_list))
         print("Contracts : ", my_cont_list)
-        print("Stats : ", my_stat_list)
-        # my_stat_list = sorted(my_stat_list,key=lambda a_stat: a_stat.stat_date)
-        context['my_ad_list'] = my_adsp_list
-        context['my_cont_list'] = my_cont_list
-        # SUMMARY STATS
-        earnings_today = 0
-        clicks_today = 0
-        impressions_today = 0
-        earnings_30day = 0
-        clicks_30day = 0
-        impressions_30day = 0
-        # TIME SERIES PLOT
-        nb_element = 30
-        # print(datetime.datetime(2017, 5,1), type(datetime.datetime(2017, 5,1)))
-        # print(datetime.datetime(2017, 5,1).timetuple(), type(datetime.datetime(2017, 5,1).timetuple()))
-        # print(time.mktime(datetime.datetime(2017, 5,1).timetuple())*10000,
-        # type(time.mktime(datetime.datetime(2017, 5,1).timetuple())))
-        # start_time = int(time.mktime(datetime.datetime(2017, 5,
-        #                                                1).timetuple()) * 1000)
-        # xdata = range(nb_element)
-        # xdata = map(lambda x: start_time + x * 100000000, xdata)
-        # print("xdata is : ",xdata,type(xdata))
-        times = [int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]
-        times2 = [a_stat.stat_date for a_stat in my_stat_list]
+        # print("Stats : ", my_stat_list)
 
-        tooltip_date = "%d %b %Y %H:%M:%S %p"
-        extra_serie = {"tooltip": {"y_start": "There are ", "y_end": " calls"},
-                       "date_format": tooltip_date}
-        chartdata = {'x': sorted(times)}
-        charttype = "lineWithFocusChart"
-        print(my_adsp_list)
+        # Times
+        # set retrieves unique elements, no internal oredering
+        # cast to list again, because list is convenient.
+        times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
+        times2 = list(set([a_stat.stat_date for a_stat in my_stat_list]))
+        ## SHIVA: Don't know which format you want time in, replace times with
+        ## times2 in the next line if needed. Seems like times is more versatile
+        ## and can be converted to other formats in front end as was happening
+        ## earlier. Times2 is more restricted but is hard to transform.
+        print(times2)
+        # sort by ascending order
+        context['c1_x'] = sorted(times)
+        # labels for chart 1
+        context['c1_adspnames'] = []
+        # array with zeros
+        temp = [0]*len(my_adsp_list)
+        # Find top 5 that are nonzero
+        #enum gives index (loop var) and objects
         for ind1,an_adsp in enumerate(my_adsp_list):
+            related_cont_list = my_cont_list.filter(adspace=an_adsp)
+            for a_cont in related_cont_list:
+                related_stat_list = my_stat_list.filter(contract=a_cont)
+                for a_stat in related_stat_list:
+                    # Lists have .index() which returns index of elem in brackets
+                    # ['a','b','c'].index('b') -> 1
+                    # time_index = times2.index(a_stat.stat_date)
+                    temp[ind1]+=float(a_stat.revenue)
+        print(temp)
+        # From list of all adspace revenues, get indices of top 5 adspaces
+        # [13,11,12] -> np.sort() will give [11,12,13]
+        # np.argsort gives [2,0,1]
+        # [-5:] return last 5 elements (e.g, 10,20,30,40,50)
+        # reversed will make it (50,40,30,20,10)
+        chosen_inds = list(reversed(np.argsort(temp)[-5:]))
+        print("Chosen indices are : ", chosen_inds)
+        adspno = 0
+        # choseninds is a list of indices of top5 adspaces in descending order
+        for ind1 in range(len(chosen_inds)):
             # Find all contracts with this adspace, and get all the stats for
-            # that contract. Currently only earnings
-            if ind1<5:
-                chartdata['name' + str(ind1)] = an_adsp.name
-                related_cont_list = my_cont_list.filter(adspace=an_adsp)
-                for a_cont in related_cont_list:
-                    related_stat_list = my_stat_list.filter(contract=a_cont)
-                    related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
-                    stat2plot = []
-                    for a_stat in related_stat_list:
-                        if ctype1==u'0' or ctype1==0:
-                            stat2plot.append(float(a_stat.revenue))
-                        elif ctype1==u'1':
-                            stat2plot.append(float(a_stat.clicks))
-                        elif ctype1==u'2':
-                            stat2plot.append(float(a_stat.impressions))
-                chartdata['y' + str(ind1)] = stat2plot
-                chartdata['extra' + str(ind1)] = extra_serie
+            # those contracts and sum. Should do all the revenue sums and then add
+            # only the top 5 to the list.
+            an_adsp = my_adsp_list[chosen_inds[ind1]]
+            # revenue0 is the list of y values for the top contract
+            context['c1_y_revenue'+str(ind1)] = [0]*len(times)
+            #---------------------------------------------------------------------Shiva was here---
+            context['c1_y_clicks'+str(ind1)] = [0]*len(times)
+            context['c1_y_impression'+str(ind1)] = [0]*len(times)
+            context['c1_y_rpm'+str(ind1)] = [0]*len(times)
+            context['c1_adspnames'].append(an_adsp.name)
+            related_cont_list = my_cont_list.filter(adspace=an_adsp)
+            for a_cont in related_cont_list:
+                related_stat_list = my_stat_list.filter(contract=a_cont)
+                related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
+                for a_stat in related_stat_list:
+                    time_index = times2.index(a_stat.stat_date)
+                    context['c1_y_revenue'+str(ind1)][time_index]+=float(a_stat.revenue)
+                    context['c1_y_clicks'+str(ind1)][time_index]+=float(a_stat.clicks)
+                    context['c1_y_impression'+str(ind1)][time_index]+=float(a_stat.impressions)
+                    context['c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.rpm)
+        print(context['c1_adspnames'])
 
-        count = 1
+        xdata = []
+        context['c2_y_weekrevenue'] = [0]*len(my_cont_list)
+        context['c2_y_day30revenue'] = [0]*len(my_cont_list)
+        context['c2_y_alltimerevenue'] = [0]*len(my_cont_list)
+        for ind in range(len(my_cont_list)):
+            xdata.append(my_cont_list[ind].name)
+            related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
+            week_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-7))
+            day30_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-30))
+            alltime_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-10000))
+            context['c2_y_weekrevenue'][ind] = sum([a_stat.revenue for a_stat in week_list])
+            context['c2_y_day30revenue'][ind] = sum([a_stat.revenue for a_stat in day30_list])
+            context['c2_y_alltimerevenue'][ind] = sum([a_stat.revenue for a_stat in alltime_list])
+            # In the front end, sum up the correct list, round to 0 places and display.
+        context['c2_xdata'] = xdata
+        print("------------------------------------------------------------------")
+        return response.Response(context)
+    except:
+        print("Failed somewhere in the body")
+        context['ERROR'] = "Just"
+        return response.Response(context)
 
-        # CREATE PLOT
-        data = {'charttype': charttype,
-                'chartdata': chartdata
-                }
-        chartcontainer = "linewithfocuschart_container"
-        context['charttype1'] = charttype
-        context['chartdata1'] = chartdata
-        context['chartcontainer1'] = chartcontainer
-        context['extra1'] = {'x_is_date': True,
-                             'x_axis_format': '%d %b %Y',
-                             'tag_script_js': True,
-                             'jquery_on_ready': False,
-                             }
+@api_view(['GET', 'POST'])
+def pub_dashboard_topstat(request):
+    """
+    Publisher dashboard to work with angular but componentized.
+    """
+    context = {}
+    # print("User is  : ",request.user)
+    ## TODO
+    ## 1. Make this work with request.user (Django Sessions) - DONE
+    ## 2. Fill up more data - DONE but more required
+    ## 3. Add a balance and account number to the profile.
+    ## 4. Verify filters and sent data when awake :D
+    ## 5. Little green box - daily change should be calculated
+    print("-----------------------------------------------------------------")
+    if request.method=="POST":
+        print("It was post")
+        currency_tag = request.POST[u'currency']
+        print("Currency is : ", type(request.POST[u'currency']))
+    else:
+        print("It was not post")
+    print("-------------------------------------------------------------------")
 
-        # context['metric1_today'] = round(earnings_today / clicks_today, 2)
-        # context['metric1_30day'] = round(earnings_30day / clicks_30day, 2)
-        # context['metric1_change'] = round(100 * earnings_today /
-        #                                   clicks_today /
-        #                                   (earnings_30day /
-        #                                    clicks_30day) - 100, 2)
-        # context['metric2_today'] = round(earnings_today / impressions_today, 2)
-        # context['metric2_30day'] = round(earnings_30day / impressions_30day, 2)
-        # context['metric2_change'] = round(100 * earnings_today /
-        #                                   impressions_today /
-        #                                   (earnings_30day /
-        #                                    impressions_30day) - 100, 2)
-        print(datetime.date.today())
+    try:
+        # Publisher EQC =======================================================
+        t = Agent.objects.all() # 1- team, 2 advertiser1, 3 is publisher1
+        # TODO : user request.user to get the right internal user instead of hardcoding.
+        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user,
+                                           contract__currency=currency_tag)
+
+
         today_stats = my_stat_list.filter(stat_date=datetime.date.today())
         if today_stats:
             nstats = len(today_stats)
-            context['revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
-            context['clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
-            context['impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
-            context['rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+            context['topstat_revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+            context['topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
+            context['topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
+            context['topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
         else:
-            context['revenue_today'] = 0
-            context['clicks_today'] = 0
-            context['impressions_today'] = 0
-            context['rpm_today'] = 0
+            context['topstat_revenue_today'] = 0
+            context['topstat_clicks_today'] = 0
+            context['topstat_impressions_today'] = 0
+            context['topstat_rpm_today'] = 0
 
         month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
         if month_stats:
             nstats = len(month_stats)
-            context['revenue_30day'] = round(sum([month_stats[ind].revenue for ind in range(nstats)])/nstats,8)
-            context['clicks_30day'] =  round(sum([month_stats[ind].clicks for ind in range(nstats)])/nstats,0)
-            context['impressions_30day'] =  round(sum([month_stats[ind].impressions for ind in range(nstats)])/nstats,0)
-            context['rpm_30day'] =  round(sum([month_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+            context['topstat_revenue_30day'] = round(sum([month_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+            context['topstat_clicks_30day'] =  round(sum([month_stats[ind].clicks for ind in range(nstats)])/nstats,0)
+            context['topstat_impressions_30day'] =  round(sum([month_stats[ind].impressions for ind in range(nstats)])/nstats,0)
+            context['topstat_rpm_30day'] =  round(sum([month_stats[ind].rpm for ind in range(nstats)])/nstats,8)
         else:
-            context['revenue_30day'] = 0
-            context['clicks_30day'] = 0
-            context['impressions_30day'] = 0
-            context['rpm_30day'] = 0
+            context['topstat_revenue_30day'] = 0
+            context['topstat_clicks_30day'] = 0
+            context['topstat_impressions_30day'] = 0
+            context['topstat_rpm_30day'] = 0
+        print("------------------------------------------------------------------")
+        return response.Response(context)
+    except:
+        print("Failed somewhere in the body")
+        context['ERROR'] = "Just"
+        return response.Response(context)
 
-        context['metric1_today'] = 2
-        context['metric1_30day'] = 2
-        context['metric1_change'] = 2
-        context['metric2_today'] = 2
-        context['metric2_30day'] = 2
-        context['metric2_change'] = 2
-    except Adspace.DoesNotExist:
-    #    context['views_ts'] = False
-        context['my_ad_list'] = False
+@api_view(['GET', 'POST'])
+def pub_dashboard_tables(request):
+    """
+    Publisher dashboard to work with angular but componentized.
+    """
+    context = {}
+    # print("User is  : ",request.user)
+    ## TODO
+    ## 1. Make this work with request.user (Django Sessions) - DONE
+    ## 2. Fill up more data - DONE but more required
+    ## 3. Add a balance and account number to the profile.
+    ## 4. Verify filters and sent data when awake :D
+    ## 5. Little green box - daily change should be calculated
+    print("-----------------------------------------------------------------")
+    if request.method=="POST":
+        print("It was post")
+        currency_tag = request.POST[u'currency']
+        print("Currency is : ", type(request.POST[u'currency']))
+    else:
+        print("It was not post")
+    print("-------------------------------------------------------------------")
 
-    # SECOND PLOT
-    xdata, ydata = [], []
-    for ind in range(len(my_cont_list)):
-        xdata.append(my_cont_list[ind].name)
-        related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
-        # tydata = [float(a_str) for a_str in str(my_cont_list[ind].stats1).
-        #           split(",")]
-        try:
-            if ctype2 == u'0' or ctype2 == 0:
-                deltaval = -7
-                # ydata.append(tydata[-1])
-            elif ctype2 == u'1':
-                deltaval = -30
-                ydata.append(sum(tydata[-7:]))
-            elif ctype2 == u'2':
-                deltaval = -100000
-        except:
-            print("no ctype 2")
-            deltaval = -7
-            # ydata.append(tydata[-1])
-        related_stat_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(deltaval))
-        if sum([a_stat.revenue for a_stat in related_stat_list]):
-            ydata.append(sum([a_stat.revenue for a_stat in related_stat_list]))
-        else:
-            ydata.append(0)
-    ydata = [int(round(x)) for x in ydata]
+    try:
+        # Publisher EQC =======================================================
+        t = Agent.objects.all() # 1- team, 2 advertiser1, 3 is publisher1
+        #python indexes from 0
+        # returns a list
+        my_cont_list = Contract.objects.filter(adspace__publisher=t[2].user,
+                                               currency=currency_tag)
+        # filter out a subset of objects
+        # if make change to models, do 'makemigations' and then 'migrate'
+        # contract has adspace, adspace hath publisher
+        # "" - basic STRING
+        # u"" - unicode string
+        my_adsp_list = Adspace.objects.filter(publisher=t[2].user)
 
-    extra_serie1 = {"tooltip": {"y_start": "", "y_end": " cal"}}
-    chartdata = {'x': xdata, 'name1': '', 'y1': ydata, 'extra1': extra_serie1,
-                 }
-    charttype = "discreteBarChart"
-    data = {'charttype': charttype, 'chartdata': chartdata, }
-    chartcontainer = "discretebarchart_container"
-    context['charttype2'] = charttype
-    context['chartdata2'] = chartdata
-    context['chartcontainer2'] = chartcontainer
-    context['extra2'] = {'x_is_date': False,
-                         'x_axis_format': '',
-                         'tag_script_js': True,
-                         'jquery_on_ready': True, }
+        # all of these are Python Lists
+        # my_adsp_list = Adspace.objects.filter(publisher=request.user)
+        # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
+        # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
+        print("Adspaces : "+str(my_adsp_list))
+        print("Contracts : ", my_cont_list)
+        # print("Stats : ", my_stat_list)
 
-    # DON'T WANT TO HANDLE FORMS ON THE DASHBOARD
-    #if request.method == 'POST':
-        # # NOTE: TWO FORMS DON'T WORK AT THE SAME TIME
-        #web_form = WebsiteForm(request.POST)
-        #if form.is_valid():
-            #new_website = web_form.save(commit=False)
-            #new_website.user = request.user
-            #new_website.save()
-    #else:
-        #web_form = WebsiteForm()
-        #ad_form = AdspaceForm()
-    #context['web_form'] = web_form
-    #context['ad_form'] = ad_form
-    # TODO: WEBSITE DELETION
-    return render(request, 'pub_dashboard.html', context)
+        ser = AdspaceSerializer(my_adsp_list, many=True)
+        context['my_ad_list'] = ser.data
+        # ser = ContractSerializer(my_cont_list, many=True)
+        # context['my_cont_list'] = my_cont_list
+        # short hand notation called 'List Comprehension'
+        print(type(my_cont_list[0].ad.advertiser))
+        context['t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
+        context['t2_col2'] = [a_cont.start_time.date() for a_cont in my_cont_list]
+        context['t1_col1'] = [an_adsp.website.name for an_adsp in my_adsp_list]
+        context['t1_col2'] = [an_adsp.adtype for an_adsp in my_adsp_list]
+        context['t1_col3'] = [an_adsp.genre for an_adsp in my_adsp_list]
+        # templist = []
+        # for a_cont in my_cont_list:
+        #     templist.append(a_cont.start_time)
+        # return (templist)
 
-# @login_required
+        # templist = []
+        # for contract_index in range(len(my_cont_list)):
+        #     templist.append(my_cont_list[contract_index].start_time)
+        # return (templist)
+
+
+        return response.Response(context)
+    except:
+        print("Failed somewhere in the body")
+        context['ERROR'] = "Just"
+        return response.Response(context)
+
+
+#@login_required
 @api_view(['GET', 'POST'])
 def pub_dashboard_ser(request):
     """
@@ -525,21 +590,12 @@ def pub_dashboard_ser(request):
     ## 5. Little green box - daily change should be calculated
 
     try:
-        t = Agent.objects.all()
-        context['pe_balance'] = t[2].e_balance
-        context['px_balance'] = t[2].x_balance
-        context['ae_balance'] = t[1].e_balance
-        context['ax_balance'] = t[1].x_balance
         # Publisher EQC =======================================================
+        t = Agent.objects.all()
         my_cont_list = Contract.objects.filter(adspace__publisher=t[2].user,
                                                currency=u"eqc")
         my_adsp_list = Adspace.objects.filter(publisher=t[2].user)
-        today = datetime.date.today()
-        till  = today.replace(month=today.month-1)
-        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user,
-                                           stat_date__lte=today,
-                                           stat_date__gte=till,
-                                           contract__currency=u"eqc")
+        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user)
         # my_adsp_list = Adspace.objects.filter(publisher=request.user)
         # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
         # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
@@ -547,15 +603,12 @@ def pub_dashboard_ser(request):
         print("Contracts : ", my_cont_list)
         # print("Stats : ", my_stat_list)
 
-        # ser = AdspaceSerializer(my_adsp_list, many=True)
-        # context['my_ad_list'] = ser.data
+        ser = AdspaceSerializer(my_adsp_list, many=True)
+        context['my_ad_list'] = ser.data
         # ser = ContractSerializer(my_cont_list, many=True)
         # context['my_cont_list'] = my_cont_list
         context['pe_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
         context['pe_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
-        context['pe_t1_col1'] = []
-        context['pe_t1_col2'] = []
-        context['pe_t1_col3'] = []
 
         # Times
         times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
@@ -564,7 +617,7 @@ def pub_dashboard_ser(request):
         ## times2 in the next line if needed. Seems like times is more versatile
         ## and can be converted to other formats in front end as was happening
         ## earlier. Times2 is more restricted but is hard to transform.
-        print(sorted(times2))
+        print(times2)
         context['pe_c1_x'] = sorted(times)
         context['pe_c1_adspnames'] = []
         temp = [0]*len(my_adsp_list)
@@ -585,9 +638,6 @@ def pub_dashboard_ser(request):
             # those contracts and sum. Should do all the revenue sums and then add
             # only the top 5 to the list.
             an_adsp = my_adsp_list[chosen_inds[ind1]]
-            context['pe_t1_col1'].append(str(an_adsp.website))
-            context['pe_t1_col2'].append(str(an_adsp.adtype))
-            context['pe_t1_col3'].append(str(an_adsp.genre))
             context['pe_c1_y_revenue'+str(ind1)] = [0]*len(times)
             context['pe_c1_y_clicks'+str(ind1)] = [0]*len(times)
             context['pe_c1_y_impression'+str(ind1)] = [0]*len(times)
@@ -605,26 +655,17 @@ def pub_dashboard_ser(request):
                     context['pe_c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.rpm)
         print(context['pe_c1_adspnames'])
         today_stats = my_stat_list.filter(stat_date=datetime.date.today())
-        yest_stats = my_stat_list.filter(stat_date=today.replace(day=today.day-1))
         if today_stats:
             nstats = len(today_stats)
             context['pe_topstat_revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
             context['pe_topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
             context['pe_topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
             context['pe_topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
-            context['pe_topstat_revenue_change'] = round(sum([today_stats[ind].revenue-yest_stats[ind].revenue for ind in range(nstats)])/nstats,2)
-            context['pe_topstat_clicks_change'] = round(sum([today_stats[ind].clicks-yest_stats[ind].clicks for ind in range(nstats)])/nstats,2)
-            context['pe_topstat_impressions_change'] = round(sum([today_stats[ind].impressions-yest_stats[ind].impressions for ind in range(nstats)])/nstats,2)
-            context['pe_topstat_rpm_change'] = round(sum([today_stats[ind].rpm-yest_stats[ind].rpm for ind in range(nstats)])/nstats,2)
         else:
             context['pe_topstat_revenue_today'] = 0
             context['pe_topstat_clicks_today'] = 0
             context['pe_topstat_impressions_today'] = 0
             context['pe_topstat_rpm_today'] = 0
-            context['pe_topstat_revenue_change'] = 0
-            context['pe_topstat_clicks_change'] = 0
-            context['pe_topstat_impressions_change'] = 0
-            context['pe_topstat_rpm_change'] = 0
 
         month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
         if month_stats:
@@ -659,11 +700,8 @@ def pub_dashboard_ser(request):
         t = Agent.objects.all()
         my_cont_list = Contract.objects.filter(adspace__publisher=t[2].user,
                                                currency=u"xqc")
-        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user,
-                                           stat_date__lte=today,
-                                           stat_date__gte=till,
-                                           contract__currency=u"xqc")
         # my_adsp_list = Adspace.objects.filter(publisher=t[2].user)
+        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user)
         # my_adsp_list = Adspace.objects.filter(publisher=request.user)
         # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
         # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
@@ -671,15 +709,12 @@ def pub_dashboard_ser(request):
         print("Contracts : ", my_cont_list)
         # print("Stats : ", my_stat_list)
 
-        # ser = AdspaceSerializer(my_adsp_list, many=True)
-        # context['my_adsp_list'] = ser.data
+        ser = AdspaceSerializer(my_adsp_list, many=True)
+        context['my_adsp_list'] = ser.data
         # ser = ContractSerializer(my_cont_list, many=True)
         # context['my_cont_list'] = my_cont_list
         context['px_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
         context['px_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
-        context['px_t1_col1'] = []
-        context['px_t1_col2'] = []
-        context['px_t1_col3'] = []
 
         # Times
         times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
@@ -709,9 +744,6 @@ def pub_dashboard_ser(request):
             # those contracts and sum. Should do all the revenue sums and then add
             # only the top 5 to the list.
             an_adsp = my_adsp_list[chosen_inds[ind1]]
-            context['px_t1_col1'].append(str(an_adsp.website))
-            context['px_t1_col2'].append(str(an_adsp.adtype))
-            context['px_t1_col3'].append(str(an_adsp.genre))
             context['px_c1_y_revenue'+str(ind1)] = [0]*len(times)
             context['px_c1_y_clicks'+str(ind1)] = [0]*len(times)
             context['px_c1_y_impression'+str(ind1)] = [0]*len(times)
@@ -729,26 +761,17 @@ def pub_dashboard_ser(request):
                     context['px_c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.rpm)
         print(context['px_c1_adspnames'])
         today_stats = my_stat_list.filter(stat_date=datetime.date.today())
-        yest_stats = my_stat_list.filter(stat_date=today.replace(day=today.day-1))
         if today_stats:
             nstats = len(today_stats)
             context['px_topstat_revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
             context['px_topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
             context['px_topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
             context['px_topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
-            context['px_topstat_revenue_change'] = round(sum([today_stats[ind].revenue-yest_stats[ind].revenue for ind in range(nstats)])/nstats,2)
-            context['px_topstat_clicks_change'] = round(sum([today_stats[ind].clicks-yest_stats[ind].clicks for ind in range(nstats)])/nstats,2)
-            context['px_topstat_impressions_change'] = round(sum([today_stats[ind].impressions-yest_stats[ind].impressions for ind in range(nstats)])/nstats,2)
-            context['px_topstat_rpm_change'] = round(sum([today_stats[ind].rpm-yest_stats[ind].rpm for ind in range(nstats)])/nstats,2)
         else:
             context['px_topstat_revenue_today'] = 0
             context['px_topstat_clicks_today'] = 0
             context['px_topstat_impressions_today'] = 0
             context['px_topstat_rpm_today'] = 0
-            context['px_topstat_revenue_change'] = 0
-            context['px_topstat_clicks_change'] = 0
-            context['px_topstat_impressions_change'] = 0
-            context['px_topstat_rpm_change'] = 0
 
         month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
         if month_stats:
@@ -781,15 +804,12 @@ def pub_dashboard_ser(request):
         print("------------------------------------------------------------------")
 
 
-        # Advertiser EQC =======================================================
+        # # Advertiser EQC =======================================================
         t = Agent.objects.all()
         my_cont_list = Contract.objects.filter(ad__advertiser=t[1].user,
                                                currency=u"eqc")
         my_ad_list = Ad.objects.filter(advertiser=t[1].user)
-        my_stat_list = Stat.objects.filter(contract__ad__advertiser=t[1].user,
-                                           stat_date__lte=today,
-                                           stat_date__gte=till,
-                                           contract__currency=u"eqc")
+        my_stat_list = Stat.objects.filter(contract__ad__advertiser=t[1].user)
         # my_adsp_list = Adspace.objects.filter(publisher=request.user)
         # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
         # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
@@ -797,13 +817,10 @@ def pub_dashboard_ser(request):
         print("Contracts : ", my_cont_list)
         print("Stats : ", my_stat_list)
 
-        # ser = AdSerializer(my_ad_list, many=True)
-        # context['my_ad_list'] = ser.data
+        ser = AdSerializer(my_ad_list, many=True)
+        context['my_ad_list'] = ser.data
         context['ae_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
         context['ae_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
-        context['ae_t1_col1'] = []
-        context['ae_t1_col2'] = []
-        context['ae_t1_col3'] = []
 
         # Times
         times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
@@ -828,16 +845,12 @@ def pub_dashboard_ser(request):
             # Find all contracts with this ad, and get all the stats for
             # those contracts and sum. Should do all the clicks sums and then add
             # only the top 5 to the list.
-            an_ad = my_ad_list[chosen_inds[ind1]]
-            context['ae_t1_col1'].append(an_ad.name)
-            context['ae_t1_col2'].append(an_ad.adtype)
-            context['ae_t1_col3'].append(an_ad.genre)
+            an_adsp = my_ad_list[chosen_inds[ind1]]
             context['ae_c1_y_clicks'+str(ind1)] = [0]*len(times)
             context['ae_c1_y_impression'+str(ind1)] = [0]*len(times)
             # context['ae_c1_y_rpm'+str(ind1)] = [0]*len(times)
             context['ae_c1_adnames'].append(an_ad.name)
             related_cont_list = my_cont_list.filter(ad=an_ad)
-            print(ind1, related_cont_list)
             for a_cont in related_cont_list:
                 related_stat_list = my_stat_list.filter(contract=a_cont)
                 related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
@@ -853,14 +866,10 @@ def pub_dashboard_ser(request):
             context['ae_topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
             context['ae_topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
             # context['ae_topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
-            context['ae_topstat_clicks_change'] = round(sum([today_stats[ind].clicks-yest_stats[ind].clicks for ind in range(nstats)])/nstats,2)
-            context['ae_topstat_impressions_change'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,2)
         else:
             context['ae_topstat_clicks_today'] = 0
             context['ae_topstat_impressions_today'] = 0
             # context['ae_topstat_rpm_today'] = 0
-            context['ae_topstat_clicks_change'] = 0
-            context['ae_topstat_impressions_change'] = 0
 
         month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
         if month_stats:
@@ -895,10 +904,8 @@ def pub_dashboard_ser(request):
         t = Agent.objects.all()
         my_cont_list = Contract.objects.filter(ad__advertiser=t[1].user,
                                                currency=u"xqc")
-        my_stat_list = Stat.objects.filter(contract__ad__advertiser=t[1].user,
-                                           stat_date__lte=today,
-                                           stat_date__gte=till,
-                                           contract__currency=u"eqc")
+        my_ad_list = Ad.objects.filter(advertiser=t[1].user)
+        my_stat_list = Stat.objects.filter(contract__ad__advertiser=t[1].user)
         # my_adsp_list = Adspace.objects.filter(publisher=request.user)
         # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
         # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
@@ -906,13 +913,10 @@ def pub_dashboard_ser(request):
         print("Contracts : ", my_cont_list)
         print("Stats : ", my_stat_list)
 
-        # ser = AdSerializer(my_ad_list, many=True)
-        # context['my_ad_list'] = ser.data
-        context['ax_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
-        context['ax_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
-        context['ax_t1_col1'] = []
-        context['ax_t1_col2'] = []
-        context['ax_t1_col3'] = []
+        ser = AdSerializer(my_ad_list, many=True)
+        context['my_ad_list'] = ser.data
+        context['ae_t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
+        context['ae_t2_col2'] = [a_cont.start_time for a_cont in my_cont_list]
 
         # Times
         times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
@@ -937,10 +941,7 @@ def pub_dashboard_ser(request):
             # Find all contracts with this ad, and get all the stats for
             # those contracts and sum. Should do all the clicks sums and then add
             # only the top 5 to the list.
-            an_ad = my_ad_list[chosen_inds[ind1]]
-            context['ax_t1_col1'].append(an_ad.name)
-            context['ax_t1_col2'].append(an_ad.adtype)
-            context['ax_t1_col3'].append(an_ad.genre)
+            an_adsp = my_ad_list[chosen_inds[ind1]]
             context['ax_c1_y_clicks'+str(ind1)] = [0]*len(times)
             context['ax_c1_y_impression'+str(ind1)] = [0]*len(times)
             # context['ax_c1_y_rpm'+str(ind1)] = [0]*len(times)
@@ -956,20 +957,16 @@ def pub_dashboard_ser(request):
                     # context['ax_c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.rpm)
         print(context['ax_c1_adnames'])
         today_stats = my_stat_list.filter(stat_date=datetime.date.today())
-        yest_stats = my_stat_list.filter(stat_date=today.replace(day=today.day-1))
         if today_stats:
             nstats = len(today_stats)
             context['ax_topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
             context['ax_topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
             # context['ax_topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
-            context['ax_topstat_clicks_change'] = round(sum([today_stats[ind].clicks-yest_stats[ind].clicks for ind in range(nstats)])/nstats,2)
-            context['ax_topstat_impressions_change'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,2)
+            context['ax_topstat_impressions_30day'] = 0
         else:
             context['ax_topstat_clicks_today'] = 0
             context['ax_topstat_impressions_today'] = 0
             # context['ax_topstat_rpm_today'] = 0
-            context['ax_topstat_clicks_change'] = 0
-            context['ax_topstat_impressions_change'] = 0
 
         month_stats = my_stat_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
         if month_stats:
@@ -979,7 +976,6 @@ def pub_dashboard_ser(request):
             # context['ax_topstat_rpm_30day'] =  round(sum([month_stats[ind].rpm for ind in range(nstats)])/nstats,8)
         else:
             context['ax_topstat_clicks_30day'] = 0
-            context['ax_topstat_impressions_30day'] = 0
             # context['ax_topstat_rpm_30day'] = 0
 
         xdata = []
@@ -1001,10 +997,6 @@ def pub_dashboard_ser(request):
 
     except Adspace.DoesNotExist:
         context['is_error'] = "No adspaces found"
-
-
-
-
 
     return response.Response(context)
 
