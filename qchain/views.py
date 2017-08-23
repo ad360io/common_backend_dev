@@ -30,6 +30,31 @@ from rest_framework.authentication import SessionAuthentication, BasicAuthentica
 #     queryset = Adspace.objects.all()
 #     serializer_class = DinosaurSerializer
 
+
+@api_view(["GET"])
+def dashboard_stats(request):
+    if(request.GET.get("userMode") and request.GET.get("currencyType") and request.GET.get("userName")):
+        userMode = request.GET.get("userMode")
+        currencyType = request.GET.get("currencyType")
+        userName = request.GET.get("userName")
+        currentAgent = Agent.objects.filter(user__username=userName)
+        currentUser = currentAgent[0].user
+
+        if( userMode == "publisher" ):
+            dashboard_stats = Stat.objects.filter(contract__adspace__publisher=currentUser,contract__currency=currencyType)
+            print(dashboard_stats)
+        elif( userMode == "advertiser" ):
+            dashboard_stats = Stat.objects.filter(contract__ad__advertiser=currentUser,contract__currency=currencyType)
+            print(dashboard_stats)
+        else:
+            print("Unknown mode specified")
+    else:
+        print("Incorrect parameters specified. What should I do now?")
+        return response.Response({"error":"Incorrect parameters specified"})
+
+    return response.Response({"j":"jetti"})
+
+
 @api_view(["GET","POST"])
 def login3210(request):
     username = request.data.get("username")
@@ -310,6 +335,182 @@ def create_adsp_ser(request):
 
     return render(request, 'create_adsp.html')
 
+
+@api_view(["GET"])
+def dashboard_charts(request):
+    if(request.GET.get("userMode") and request.GET.get("currencyType") and request.GET.get("userName")):
+        userMode = request.GET.get("userMode")
+        currencyType = request.GET.get("currencyType")
+        userName = request.GET.get("userName")
+        currentAgent = Agent.objects.filter(user__username=userName)
+        currentUser = currentAgent[0].user
+        context = {}
+        if( userMode == "publisher" ):
+            my_stat_list = Stat.objects.filter(contract__adspace__publisher=currentUser,contract__currency=currencyType)
+            my_cont_list = Contract.objects.filter(adspace__publisher=currentUser,
+                                                   currency=currencyType)
+            my_adsp_list = Adspace.objects.filter(publisher=currentUser)
+
+            # Times
+            # set retrieves unique elements, no internal oredering
+            # cast to list again, because list is convenient.
+            times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
+            times2 = list(set([a_stat.stat_date for a_stat in my_stat_list]))
+            ## SHIVA: Don't know which format you want time in, replace times with
+            ## times2 in the next line if needed. Seems like times is more versatile
+            ## and can be converted to other formats in front end as was happening
+            ## earlier. Times2 is more restricted but is hard to transform.
+            print(times2)
+            # sort by ascending order
+            context['c1_x'] = sorted(times)
+
+            # array with zeros
+            temp = [0]*len(my_adsp_list)
+            # Find top 5 that are nonzero
+            #enum gives index (loop var) and objects
+            for ind1,an_adsp in enumerate(my_adsp_list):
+                related_cont_list = my_cont_list.filter(adspace=an_adsp)
+                for a_cont in related_cont_list:
+                    related_stat_list = my_stat_list.filter(contract=a_cont)
+                    for a_stat in related_stat_list:
+                        # Lists have .index() which returns index of elem in brackets
+                        # ['a','b','c'].index('b') -> 1
+                        # time_index = times2.index(a_stat.stat_date)
+                        temp[ind1]+=float(a_stat.revenue)
+            print(temp)
+            # From list of all adspace revenues, get indices of top 5 adspaces
+            # [13,11,12] -> np.sort() will give [11,12,13]
+            # np.argsort gives [2,0,1]
+            # [-5:] return last 5 elements (e.g, 10,20,30,40,50)
+            # reversed will make it (50,40,30,20,10)
+            chosen_inds = list(reversed(np.argsort(temp)[-5:]))
+            print("Chosen indices are : ", chosen_inds)
+            adspno = 0
+            context['c1_y_revenue'],context['c1_y_clicks'] = [], []
+            context['c1_y_impressions'],context['c1_y_rpm'] = [], []
+            # choseninds is a list of indices of top5 adspaces in descending order
+            for ind1 in range(len(chosen_inds)):
+                # Find all contracts with this adspace, and get all the stats for
+                # those contracts and sum. Should do all the revenue sums and then add
+                # only the top 5 to the list.
+                an_adsp = my_adsp_list[chosen_inds[ind1]]
+                # revenue0 is the list of y values for the top contract
+                context['c1_y_revenue'].append({'data': [0]*len(times), 'label':an_adsp.name})
+                context['c1_y_clicks'].append({'data': [0]*len(times), 'label':an_adsp.name})
+                context['c1_y_impressions'].append({'data': [0]*len(times), 'label':an_adsp.name})
+                context['c1_y_rpm'].append({'data': [0]*len(times), 'label':an_adsp.name})
+                # context['c1_y_clicks'+str(ind1)] = {"data" : [0]*len(times)}
+                # context['c1_y_impression'+str(ind1)] = [0]*len(times)
+                # context['c1_y_rpm'+str(ind1)] = [0]*len(times)
+                # context['c1_adspnames'].append(an_adsp.name)
+                related_cont_list = my_cont_list.filter(adspace=an_adsp)
+                for a_cont in related_cont_list:
+                    related_stat_list = my_stat_list.filter(contract=a_cont)
+                    related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
+                    for a_stat in related_stat_list:
+                        time_index = times2.index(a_stat.stat_date)
+                        context['c1_y_revenue'][ind1]["data"][time_index]+=float(a_stat.revenue)
+                        context['c1_y_clicks'][ind1]["data"][time_index]+=float(a_stat.clicks)
+                        context['c1_y_impressions'][ind1]["data"][time_index]+=float(a_stat.impressions)
+                        context['c1_y_rpm'][ind1]["data"][time_index]+=float(a_stat.rpm)
+                        # context['c1_y_impression'+str(ind1)][time_index]+=float(a_stat.impressions)
+                        # context['c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.rpm)
+            # print(context['c1_adspnames'])
+
+            xdata = []
+            context['c2_y_weekrevenue'] = {"data":[0]*len(my_cont_list)}
+            context['c2_y_day30revenue'] = {"data":[0]*len(my_cont_list)}
+            context['c2_y_alltimerevenue'] = {"data":[0]*len(my_cont_list)}
+            for ind in range(len(my_cont_list)):
+                xdata.append(my_cont_list[ind].name)
+                related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
+                week_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-7))
+                day30_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-30))
+                alltime_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-10000))
+                context['c2_y_weekrevenue']["data"][ind] = sum([a_stat.revenue for a_stat in week_list])
+                context['c2_y_day30revenue']["data"][ind] = sum([a_stat.revenue for a_stat in day30_list])
+                context['c2_y_alltimerevenue']["data"][ind] = sum([a_stat.revenue for a_stat in alltime_list])
+                # In the front end, sum up the correct list, round to 0 places and display.
+            context['c2_xdata'] = xdata
+            print("------------------------------------------------------------------")
+            return response.Response(context)
+
+        elif( userMode == "advertiser" ):
+            my_stat_list = Stat.objects.filter(contract__ad__advertiser=currentUser,contract__currency=currencyType)
+            my_cont_list = Contract.objects.filter(ad__advertiser=currentUser,
+                                                   currency=currencyType)
+            my_ad_list = Ad.objects.filter(advertiser=currentUser)
+
+            print("Ads : "+str(my_ad_list))
+            print("Contracts : ", my_cont_list)
+            print("Stats : ", my_stat_list)
+
+            # Times
+            times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
+            times2 = list(set([a_stat.stat_date for a_stat in my_stat_list]))
+
+            context['c1_x'] = sorted(times)
+            context['c1_adnames'] = []
+            temp = [0]*len(my_ad_list)
+            # Find top 5 ranked by no. of clicks
+            for ind1,an_ad in enumerate(my_ad_list):
+                related_cont_list = my_cont_list.filter(ad=an_ad)
+                for a_cont in related_cont_list:
+                    related_stat_list = my_stat_list.filter(contract=a_cont)
+                    for a_stat in related_stat_list:
+                        time_index = times2.index(a_stat.stat_date)
+                        temp[ind1]+=float(a_stat.clicks)
+            print(temp)
+            chosen_inds = list(reversed(np.argsort(temp)[-5:]))
+            print("Chosen indices are : ", chosen_inds)
+            adspno = 0
+            context['c1_y_clicks'] = []
+            context['c1_y_impressions'],context['c1_y_rpm'] = [], []
+            for ind1 in range(len(chosen_inds)):
+                # Find all contracts with this ad, and get all the stats for
+                # those contracts and sum. Should do all the clicks sums and then add
+                # only the top 5 to the list.
+                an_ad = my_ad_list[chosen_inds[ind1]]
+                context['c1_y_clicks'].append({"data":[0]*len(times), 'label':an_ad.name})
+                context['c1_y_impressions'].append({"data":[0]*len(times), 'label':an_ad.name})
+                context['c1_adnames'].append(an_ad.name)
+                related_cont_list = my_cont_list.filter(ad=an_ad)
+                for a_cont in related_cont_list:
+                    related_stat_list = my_stat_list.filter(contract=a_cont)
+                    related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
+                    for a_stat in related_stat_list:
+                        time_index = times2.index(a_stat.stat_date)
+                        context['c1_y_clicks'][ind1]["data"][time_index]+=float(a_stat.clicks)
+                        context['c1_y_impressions'][ind1]["data"][time_index]+=float(a_stat.impressions)
+            print(context['c1_adnames'])
+
+
+            xdata = []
+            context['c2_y_weekclicks'] = {"data":[0]*len(my_cont_list)}
+            context['c2_y_day30clicks'] = {"data":[0]*len(my_cont_list)}
+            context['c2_y_alltimeclicks'] = {"data":[0]*len(my_cont_list)}
+            for ind in range(len(my_cont_list)):
+                xdata.append(my_cont_list[ind].name)
+                related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
+                week_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-7))
+                day30_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-30))
+                alltime_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-10000))
+                context['c2_y_weekclicks']["data"][ind] = sum([a_stat.clicks for a_stat in week_list])
+                context['c2_y_day30clicks']["data"][ind] = sum([a_stat.clicks for a_stat in day30_list])
+                context['c2_y_alltimeclicks']["data"][ind] = sum([a_stat.clicks for a_stat in alltime_list])
+                # In the front end, sum up the correct list, round to 0 places and display.
+            context['c2_xdata'] = xdata
+            return response.Response(context)
+            print("------------------------------------------------------------------")
+
+        else:
+            print("Unknown mode specified")
+    else:
+        print("Incorrect parameters specified. What should I do now?")
+        return response.Response({"error":"Incorrect parameters specified"})
+
+    return response.Response({"j":"jetti"})
+
 @api_view(['GET', 'POST'])
 def pub_dashboard_charts(request):
     """
@@ -331,112 +532,28 @@ def pub_dashboard_charts(request):
     else:
         print("It was not post")
     print("-------------------------------------------------------------------")
+    currency_tag = "eqc"
+    # try:
+    # Publisher EQC =======================================================
+    t = Agent.objects.all() # 1- team, 2 advertiser1, 3 is publisher1
+    #python indexes from 0
+    # returns a list
 
-    try:
-        # Publisher EQC =======================================================
-        t = Agent.objects.all() # 1- team, 2 advertiser1, 3 is publisher1
-        #python indexes from 0
-        # returns a list
-        my_cont_list = Contract.objects.filter(adspace__publisher=t[2].user,
-                                               currency=currency_tag)
-        # filter out a subset of objects
-        # if make change to models, do 'makemigations' and then 'migrate'
-        # contract has adspace, adspace hath publisher
-        # "" - basic STRING
-        # u"" - unicode string
-        my_adsp_list = Adspace.objects.filter(publisher=t[2].user)
-        my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user,
-                                           contract__currency=currency_tag)
-        # all of these are Python Lists
-        # my_adsp_list = Adspace.objects.filter(publisher=request.user)
-        # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
-        # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
-        print("Adspaces : "+str(my_adsp_list))
-        print("Contracts : ", my_cont_list)
-        # print("Stats : ", my_stat_list)
+    my_stat_list = Stat.objects.filter(contract__adspace__publisher=t[2].user,
+                                       contract__currency=currency_tag)
+    # all of these are Python Lists
+    # my_adsp_list = Adspace.objects.filter(publisher=request.user)
+    # my_cont_list = Contract.objects.filter(adspace__publisher=request.user)
+    # my_stat_list = Stat.objects.filter(contract__adspace__publisher=request.user)
+    print("Adspaces : "+str(my_adsp_list))
+    print("Contracts : ", my_cont_list)
+    # print("Stats : ", my_stat_list)
 
-        # Times
-        # set retrieves unique elements, no internal oredering
-        # cast to list again, because list is convenient.
-        times = list(set([int(time.mktime(a_stat.stat_date.timetuple())*1000) for a_stat in my_stat_list]))
-        times2 = list(set([a_stat.stat_date for a_stat in my_stat_list]))
-        ## SHIVA: Don't know which format you want time in, replace times with
-        ## times2 in the next line if needed. Seems like times is more versatile
-        ## and can be converted to other formats in front end as was happening
-        ## earlier. Times2 is more restricted but is hard to transform.
-        print(times2)
-        # sort by ascending order
-        context['c1_x'] = sorted(times)
-        # labels for chart 1
-        context['c1_adspnames'] = []
-        # array with zeros
-        temp = [0]*len(my_adsp_list)
-        # Find top 5 that are nonzero
-        #enum gives index (loop var) and objects
-        for ind1,an_adsp in enumerate(my_adsp_list):
-            related_cont_list = my_cont_list.filter(adspace=an_adsp)
-            for a_cont in related_cont_list:
-                related_stat_list = my_stat_list.filter(contract=a_cont)
-                for a_stat in related_stat_list:
-                    # Lists have .index() which returns index of elem in brackets
-                    # ['a','b','c'].index('b') -> 1
-                    # time_index = times2.index(a_stat.stat_date)
-                    temp[ind1]+=float(a_stat.revenue)
-        print(temp)
-        # From list of all adspace revenues, get indices of top 5 adspaces
-        # [13,11,12] -> np.sort() will give [11,12,13]
-        # np.argsort gives [2,0,1]
-        # [-5:] return last 5 elements (e.g, 10,20,30,40,50)
-        # reversed will make it (50,40,30,20,10)
-        chosen_inds = list(reversed(np.argsort(temp)[-5:]))
-        print("Chosen indices are : ", chosen_inds)
-        adspno = 0
-        # choseninds is a list of indices of top5 adspaces in descending order
-        for ind1 in range(len(chosen_inds)):
-            # Find all contracts with this adspace, and get all the stats for
-            # those contracts and sum. Should do all the revenue sums and then add
-            # only the top 5 to the list.
-            an_adsp = my_adsp_list[chosen_inds[ind1]]
-            # revenue0 is the list of y values for the top contract
-            context['c1_y_revenue'+str(ind1)] = [0]*len(times)
-            #---------------------------------------------------------------------Shiva was here---
-            context['c1_y_clicks'+str(ind1)] = [0]*len(times)
-            context['c1_y_impression'+str(ind1)] = [0]*len(times)
-            context['c1_y_rpm'+str(ind1)] = [0]*len(times)
-            context['c1_adspnames'].append(an_adsp.name)
-            related_cont_list = my_cont_list.filter(adspace=an_adsp)
-            for a_cont in related_cont_list:
-                related_stat_list = my_stat_list.filter(contract=a_cont)
-                related_stat_list = sorted(related_stat_list, key= lambda a_stat: a_stat.stat_date)
-                for a_stat in related_stat_list:
-                    time_index = times2.index(a_stat.stat_date)
-                    context['c1_y_revenue'+str(ind1)][time_index]+=float(a_stat.revenue)
-                    context['c1_y_clicks'+str(ind1)][time_index]+=float(a_stat.clicks)
-                    context['c1_y_impression'+str(ind1)][time_index]+=float(a_stat.impressions)
-                    context['c1_y_rpm'+str(ind1)][time_index]+=float(a_stat.rpm)
-        print(context['c1_adspnames'])
 
-        xdata = []
-        context['c2_y_weekrevenue'] = [0]*len(my_cont_list)
-        context['c2_y_day30revenue'] = [0]*len(my_cont_list)
-        context['c2_y_alltimerevenue'] = [0]*len(my_cont_list)
-        for ind in range(len(my_cont_list)):
-            xdata.append(my_cont_list[ind].name)
-            related_stat_list = my_stat_list.filter(contract=my_cont_list[ind])
-            week_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-7))
-            day30_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-30))
-            alltime_list = related_stat_list.filter(stat_date__gte=datetime.date.today()+datetime.timedelta(-10000))
-            context['c2_y_weekrevenue'][ind] = sum([a_stat.revenue for a_stat in week_list])
-            context['c2_y_day30revenue'][ind] = sum([a_stat.revenue for a_stat in day30_list])
-            context['c2_y_alltimerevenue'][ind] = sum([a_stat.revenue for a_stat in alltime_list])
-            # In the front end, sum up the correct list, round to 0 places and display.
-        context['c2_xdata'] = xdata
-        print("------------------------------------------------------------------")
-        return response.Response(context)
-    except:
-        print("Failed somewhere in the body")
-        context['ERROR'] = "Just"
-        return response.Response(context)
+    # except:
+    #     print("Failed somewhere in the body")
+    #     context['ERROR'] = "Just"
+    #     return response.Response(context)
 
 @api_view(['GET', 'POST'])
 def pub_dashboard_topstat(request):
