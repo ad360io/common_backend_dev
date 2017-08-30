@@ -33,19 +33,68 @@ from rest_framework.authentication import SessionAuthentication, BasicAuthentica
 
 @api_view(["GET"])
 def dashboard_stats(request):
+    context = {}
     if(request.GET.get("userMode") and request.GET.get("currencyType") and request.GET.get("userName")):
-        userMode = request.GET.get("userMode")
-        currencyType = request.GET.get("currencyType")
+        userMode = request.GET.get("userMode").lower()
+        currencyType = request.GET.get("currencyType").lower()
         userName = request.GET.get("userName")
         currentAgent = Agent.objects.filter(user__username=userName)
         currentUser = currentAgent[0].user
-
+        eqc_balance = currentAgent[0].e_balance;
+        xqc_balance = currentAgent[0].x_balance;
+        context["eqc_balance"]=eqc_balance
+        context["xqc_balance"]=xqc_balance
         if( userMode == "publisher" ):
-            dashboard_stats = Stat.objects.filter(contract__adspace__publisher=currentUser,contract__currency=currencyType)
-            print(dashboard_stats)
-        elif( userMode == "advertiser" ):
-            dashboard_stats = Stat.objects.filter(contract__ad__advertiser=currentUser,contract__currency=currencyType)
-            print(dashboard_stats)
+            user_stats_list = Stat.objects.filter(contract__adspace__publisher=currentUser,contract__currency=currencyType)
+            today_stats = user_stats_list.filter(stat_date=datetime.date.today())
+            if today_stats:
+                nstats = len(today_stats)
+                context['topstat_revenue_today'] = round(sum([today_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+                context['topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
+                context['topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
+                context['topstat_rpm_today'] = round(sum([today_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+            else:
+                context['topstat_revenue_today'] = 0
+                context['topstat_clicks_today'] = 0
+                context['topstat_impressions_today'] = 0
+                context['topstat_rpm_today'] = 0
+
+            month_stats = user_stats_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
+            if month_stats:
+                nstats = len(month_stats)
+                context['topstat_revenue_30day'] = round(sum([month_stats[ind].revenue for ind in range(nstats)])/nstats,8)
+                context['topstat_clicks_30day'] =  round(sum([month_stats[ind].clicks for ind in range(nstats)])/nstats,0)
+                context['topstat_impressions_30day'] =  round(sum([month_stats[ind].impressions for ind in range(nstats)])/nstats,0)
+                context['topstat_rpm_30day'] =  round(sum([month_stats[ind].rpm for ind in range(nstats)])/nstats,8)
+            else:
+                context['topstat_revenue_30day'] = 0
+                context['topstat_clicks_30day'] = 0
+                context['topstat_impressions_30day'] = 0
+                context['topstat_rpm_30day'] = 0
+            print("------------------------------------------------------------------")
+            return response.Response(context)
+            #print(dashboard_stats)
+        elif( userMode.lower() == "advertiser" ):
+            print(userMode.lower())
+            user_stats_list = Stat.objects.filter(contract__ad__advertiser=currentUser,contract__currency=currencyType)
+            today_stats = user_stats_list.filter(stat_date=datetime.date.today())
+            if today_stats:
+                nstats = len(today_stats)
+                context['topstat_clicks_today'] = round(sum([today_stats[ind].clicks for ind in range(nstats)])/nstats,8)
+                context['topstat_impressions_today'] = round(sum([today_stats[ind].impressions for ind in range(nstats)])/nstats,8)
+            else:
+                context['topstat_clicks_today'] = 0
+                context['topstat_impressions_today'] = 0
+            month_stats = user_stats_list.filter(stat_date__gte=datetime.date.today()-datetime.timedelta(30))
+            if month_stats:
+                nstats = len(month_stats)
+                context['topstat_clicks_30day'] =  round(sum([month_stats[ind].clicks for ind in range(nstats)])/nstats,0)
+                context['topstat_impressions_30day'] =  round(sum([month_stats[ind].impressions for ind in range(nstats)])/nstats,0)
+            else:
+                context['topstat_clicks_30day'] = 0
+                context['topstat_impressions_30day'] = 0
+            return response.Response(context)
+
         else:
             print("Unknown mode specified")
     else:
@@ -345,10 +394,10 @@ def dashboard_charts(request):
         currentAgent = Agent.objects.filter(user__username=userName)
         currentUser = currentAgent[0].user
         context = {}
-        if( userMode == "publisher" ):
-            my_stat_list = Stat.objects.filter(contract__adspace__publisher=currentUser,contract__currency=currencyType)
+        if( userMode.lower() == "publisher" ):
+            my_stat_list = Stat.objects.filter(contract__adspace__publisher=currentUser,contract__currency=currencyType.lower())
             my_cont_list = Contract.objects.filter(adspace__publisher=currentUser,
-                                                   currency=currencyType)
+                                                   currency=currencyType.lower())
             my_adsp_list = Adspace.objects.filter(publisher=currentUser)
 
             # Times
@@ -435,10 +484,10 @@ def dashboard_charts(request):
             print("------------------------------------------------------------------")
             return response.Response(context)
 
-        elif( userMode == "advertiser" ):
-            my_stat_list = Stat.objects.filter(contract__ad__advertiser=currentUser,contract__currency=currencyType)
+        elif( userMode.lower() == "advertiser" ):
+            my_stat_list = Stat.objects.filter(contract__ad__advertiser=currentUser,contract__currency=currencyType.lower())
             my_cont_list = Contract.objects.filter(ad__advertiser=currentUser,
-                                                   currency=currencyType)
+                                                   currency=currencyType.lower())
             my_ad_list = Ad.objects.filter(advertiser=currentUser)
 
             print("Ads : "+str(my_ad_list))
@@ -450,9 +499,10 @@ def dashboard_charts(request):
             times2 = list(set([a_stat.stat_date for a_stat in my_stat_list]))
 
             context['c1_x'] = sorted(times)
+            print(context['c1_x'])
             context['c1_adnames'] = []
             temp = [0]*len(my_ad_list)
-            # Find top 5 ranked by no. of clicks
+            # Find  top 5 ranked by no. of clicks
             for ind1,an_ad in enumerate(my_ad_list):
                 related_cont_list = my_cont_list.filter(ad=an_ad)
                 for a_cont in related_cont_list:
@@ -530,7 +580,7 @@ def pub_dashboard_charts(request):
         currency_tag = request.POST[u'currency']
         print("Currency is : ", type(request.POST[u'currency']))
     else:
-        print("It was not post")
+        print("in charts It was not post")
     print("-------------------------------------------------------------------")
     currency_tag = "eqc"
     # try:
@@ -564,7 +614,7 @@ def pub_dashboard_topstat(request):
     # print("User is  : ",request.user)
     ## TODO
     ## 1. Make this work with request.user (Django Sessions) - DONE
-    ## 2. Fill up more data - DONE but more required
+    ## 2. Fill up more data - DONE but more rec1quired
     ## 3. Add a balance and account number to the profile.
     ## 4. Verify filters and sent data when awake :D
     ## 5. Little green box - daily change should be calculated
@@ -574,7 +624,7 @@ def pub_dashboard_topstat(request):
         currency_tag = request.POST[u'currency']
         print("Currency is : ", type(request.POST[u'currency']))
     else:
-        print("It was not post")
+        print("in topstat It was not post")
     print("-------------------------------------------------------------------")
 
     try:
@@ -636,7 +686,7 @@ def pub_dashboard_tables(request):
         currency_tag = request.POST[u'currency']
         print("Currency is : ", type(request.POST[u'currency']))
     else:
-        print("It was not post")
+        print("in tables It was not post")
     print("-------------------------------------------------------------------")
 
     try:

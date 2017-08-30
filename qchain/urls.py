@@ -15,16 +15,17 @@ urlpatterns = [
     url(r'^marketplace/(?P<ad_id>[0-9]+)/$', qchain.views.ad_detail, name='ad_detail'), # posting details
     url(r'^pub-dashboard/$', qchain.views.pub_dashboard_ser, name='pub_dashboard'), # publisher dashboard
     # url(r'^pubdash-charts/$', qchain.views.pub_dashboard_charts, name='pubdash-charts'),
-    url(r'^pubdash-tables/$', qchain.views.pub_dashboard_tables, name='pubdash-tables'),
+    url(r'^dashboard-tables/$', qchain.views.pub_dashboard_tables, name='dashboard-tables'),
     url(r'^pubdash-topstat/$', qchain.views.pub_dashboard_topstat, name='pubdash-topstats'),
+    url(r'^dashboard-stats/$', qchain.views.dashboard_stats, name='dashboard-stats'),
     # url(r'^pubdash-charts/$', qchain.views.dashboard_charts, name='pubdash-charts'),
-    url(r'^pubdash-charts/', qchain.views.dashboard_charts, name='pubdash-charts'),
+    url(r'^dashboard-charts/', qchain.views.dashboard_charts, name='dashboard-charts'),
     url(r'^testview/(?P<ctype1>[0-2])/$', qchain.views.testview1, name='testview'),
     url(r'^testview/$', qchain.views.testview0, name='testview'),
     url(r'^create-adsp/$', qchain.views.create_adsp_ser, name='create-adsp'),
     #url(r'^sites/(?P<web_id>[0-9]+)/$', qchain.views.ad_list, name='ad_list'),
 #    url(r'^api-token-auth/', obtain_jwt_token),
-    url(r'^loginass123/$', qchain.views.login3210, name='loginass1234'),
+    url(r'^login/$', qchain.views.login3210, name='loginass1234'),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
