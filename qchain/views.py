@@ -29,6 +29,43 @@ from rest_framework.authentication import SessionAuthentication, BasicAuthentica
 #     """
 #     queryset = Adspace.objects.all()
 #     serializer_class = DinosaurSerializer
+@api_view(["GET"])
+def dashboard_tables(request):
+    context = {}
+    if(request.GET.get("userMode") and request.GET.get("currencyType") and request.GET.get("userName")):
+        userMode = request.GET.get("userMode").lower()
+        currencyType = request.GET.get("currencyType").lower()
+        userName = request.GET.get("userName")
+        currentAgent = Agent.objects.filter(user__username=userName)
+        currentUser = currentAgent[0].user
+        t = Agent.objects.all()
+
+        if(userMode == "publisher"):
+            my_cont_list = Contract.objects.filter(adspace__publisher=currentUser,
+                                                   currency=currencyType)
+
+            my_adsp_list = Adspace.objects.filter(publisher=currentUser)
+
+            context['t2_col1'] = [str(a_cont.ad.advertiser) for a_cont in my_cont_list]
+            context['t2_col2'] = [a_cont.start_time.date() for a_cont in my_cont_list]
+            context['t1_col1'] = [an_adsp.website.name for an_adsp in my_adsp_list]
+            context['t1_col2'] = [an_adsp.adtype for an_adsp in my_adsp_list]
+            context['t1_col3'] = [an_adsp.genre for an_adsp in my_adsp_list]
+            print(context)
+            return response.Response(context)
+        elif (userMode == "advertiser"):
+            my_cont_list = Contract.objects.filter(ad__advertiser=currentUser,
+                                                   currency=currencyType)
+            my_ad_list = Ad.objects.filter(advertiser=currentUser)
+            context['t2_col1'] = [str(a_cont.adspace.publisher) for a_cont in my_cont_list]
+            context['t2_col2'] = [a_cont.start_time.date() for a_cont in my_cont_list]
+            context['t1_col1'] = [ad.content for ad in my_ad_list]
+            context['t1_col2'] = [an_ad.adtype for an_ad in my_ad_list]
+            context['t1_col3'] = [an_ad.genre for an_ad in my_ad_list]
+            print(context)
+            return response.Response(context)
+    else:
+        return response.Response({"error" : "Incorrect parameters specified"})
 
 
 @api_view(["GET"])
@@ -40,8 +77,8 @@ def dashboard_stats(request):
         userName = request.GET.get("userName")
         currentAgent = Agent.objects.filter(user__username=userName)
         currentUser = currentAgent[0].user
-        eqc_balance = currentAgent[0].e_balance;
-        xqc_balance = currentAgent[0].x_balance;
+        eqc_balance = currentAgent[0].e_balance
+        xqc_balance = currentAgent[0].x_balance
         context["eqc_balance"]=eqc_balance
         context["xqc_balance"]=xqc_balance
         if( userMode == "publisher" ):
