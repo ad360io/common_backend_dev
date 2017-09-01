@@ -67,6 +67,56 @@ def dashboard_tables(request):
     else:
         return response.Response({"error" : "Incorrect parameters specified"})
 
+@api_view(["GET"])
+def display_marketplace(request):
+    ## As a publisher, I am looking for Ads paying me x.
+    ##
+    context = {}
+    context['ferrors'] = []
+    my_adreq_list = RequestForAdv.objects.all()
+    userMode = request.GET.get("userMode").lower()
+    currencyType = request.GET.get("currencyType").lower()
+    adTypeList = request.GET.get("adType")
+    adGenreList = request.GET.get("adGenre")
+    minrate = int(request.GET.get("minrate"))
+    maxrate = int(request.GET.get("maxrate"))
+    if currencyType != "" :
+        my_adreq_list = my_adreq_list.filter(currency__iexact=
+                                             currencyType)
+    # if adTypeList != [] :
+    #     qstr = [dict(AD_TYPES)[a_type] for a_type in
+    #             adTypeList]
+    #     my_adreq_list = my_adreq_list.filter(adsp__adtype__in=qstr)
+    # if adGenreList != []:
+    #     qstr = [dict(GENRE_CHOICES)[a_genre] for a_genre in
+    #             adGenreList]
+    #     qstr = adGenreList
+    #     my_adreq_list = my_adreq_list.filter(adsp__genre__in=qstr)
+
+    if minrate > maxrate:
+        print("incorrect rates")
+        context['ferrors'].append(("Invalid rates. Min rate should"
+                                   " be less than max rate"))
+
+    my_adreq_list = my_adreq_list.filter(asking_rate__gte=
+                                         minrate)
+
+    my_adreq_list = my_adreq_list.filter(asking_rate__lte=
+                                         maxrate)
+
+    if not(context['ferrors']):
+        temp = [my_adreq.adsp.all()[0] for my_adreq in my_adreq_list]
+        ser = AdspaceSerializer(temp, many=True)
+        context['adspaces'] = ser.data
+        ser = RequestForAdvSerializer(my_adreq_list, many=True)
+        context['adreqs'] = ser.data
+        # context['my_both_list'] = zip(my_adreq_list,my_adsp_list)
+        # context['my_adreq_list'] = my_adreq_list
+        return response.Response(context)
+    else:
+        my_ad_list = Adspace.objects.all()
+        context = {'my_ad_list': my_ad_list}
+        return response.Response(context)
 
 @api_view(["GET"])
 def dashboard_stats(request):
@@ -196,22 +246,20 @@ def marketplace(request):
                     my_adreq_list = my_adreq_list.filter(asking_rate__lte=
                                                          maxrate)
         my_adsp_list = [areq.adsp.all()[0] for areq in my_adreq_list]
-        # context['my_adsp_list'] = my_adsp_list
         print(context)
-        form = RequestForm()
         context['my_adreq_list'] = my_adreq_list
-        context['form'] = form
         if not(context['ferrors']):
             context['my_both_list'] = zip(my_adreq_list,my_adsp_list)
             context['my_adreq_list'] = my_adreq_list
-        return render(request, 'marketplace_ad.html', context)
+        return response.Response(context)
     else:
         form = RequestForm()
         my_ad_list = Adspace.objects.all()
-        context = {'my_ad_list': my_ad_list, 'form': form}
-        print("Got 2 list function")
-        # TODO: FILTER BY PREFERENCES
-        return render(request, 'marketplace_ad.html', context)
+        context = {'my_ad_list': my_ad_list}
+        return response.Response(context)
+        # print("Got 2 list function")
+        # # TODO: FILTER BY PREFERENCES
+        # return render(request, 'marketplace_ad.html', context)
 
 @api_view(['GET', 'POST'])
 def marketplace_ser(request):

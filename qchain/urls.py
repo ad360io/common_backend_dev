@@ -18,6 +18,7 @@ urlpatterns = [
     url(r'^dashboard-tables/$', qchain.views.dashboard_tables, name='dashboard-tables'),
     url(r'^pubdash-topstat/$', qchain.views.pub_dashboard_topstat, name='pubdash-topstats'),
     url(r'^dashboard-stats/$', qchain.views.dashboard_stats, name='dashboard-stats'),
+    url(r'^display-marketplace/$', qchain.views.display_marketplace, name='display-marketplace'),
     # url(r'^pubdash-charts/$', qchain.views.dashboard_charts, name='pubdash-charts'),
     url(r'^dashboard-charts/', qchain.views.dashboard_charts, name='dashboard-charts'),
     url(r'^testview/(?P<ctype1>[0-2])/$', qchain.views.testview1, name='testview'),

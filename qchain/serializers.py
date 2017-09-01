@@ -6,8 +6,7 @@ from qchain.forms import AdspaceForm
 class AdspaceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Adspace
-        fields = ('publisher', 'website', 'name', 'adtype', 'genre',
-        'height', 'width')
+        fields = "__all__"
 
 # class AdspaceFormSerializer(serializers.ModelSerializer):
 #     class Meta:
