@@ -29,6 +29,14 @@ from rest_framework.authentication import SessionAuthentication, BasicAuthentica
 #     """
 #     queryset = Adspace.objects.all()
 #     serializer_class = DinosaurSerializer
+@api_view(["POST"])
+def create_adspace(request):
+    if request.method == 'POST':
+        print("It is a post request!")
+    else :
+        print("not a post request")
+    return response.Response({"success":"achieved"})
+
 @api_view(["GET"])
 def dashboard_tables(request):
     context = {}

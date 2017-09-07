@@ -171,7 +171,22 @@ class RequestForAdv(models.Model):
     def clean(self):
         if self.ask_date_from >= self.ask_date_to:
             raise ValidationError(_('From date should preceed to date.'))
-
+class AdListing(models.Model):
+    """
+    Class for storing an ad listing from an advertiser
+    """
+    ad = models.ForeignKey(Ad, on_delete=models.CASCADE)
+    name = models.CharField(max_length=NAME_LENGTH)
+    currency = models.CharField(max_length=4,
+                                choices=(("eqc", "EQC"), ("xqc", "XQC")))
+    asking_rate = models.DecimalField(max_digits=MAX_DIGITS,
+                                      decimal_places=DECIMAL_PLACES,
+                                      validators=[MinValueValidator(0),
+                                                  DecimalValidator(MAX_DIGITS,
+                                                                   DECIMAL_PLACES)])
+    ask_date_from = models.DateField()
+    ask_date_to = models.DateField()
+    msg = models.CharField(max_length=SHORT_TXT_LENGTH)
 
 # class Cryptoken(models.Model):
 #     """
