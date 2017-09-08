@@ -84,22 +84,25 @@ def display_marketplace(request):
     my_adreq_list = RequestForAdv.objects.all()
     userMode = request.GET.get("userMode").lower()
     currencyType = request.GET.get("currencyType").lower()
-    adTypeList = request.GET.get("adType")
-    adGenreList = request.GET.get("adGenre")
+    adTypeList = request.GET.getlist("adType")
+    adGenreList = request.GET.getlist("adGenre")
+    # print(type(request.GET.getlist("adType")))
+    # print(type(request.GET.getlist("adGenre")))
     minrate = int(request.GET.get("minrate"))
     maxrate = int(request.GET.get("maxrate"))
     if currencyType != "" :
         my_adreq_list = my_adreq_list.filter(currency__iexact=
                                              currencyType)
-    # if adTypeList != [] :
-    #     qstr = [dict(AD_TYPES)[a_type] for a_type in
-    #             adTypeList]
-    #     my_adreq_list = my_adreq_list.filter(adsp__adtype__in=qstr)
+    if adTypeList != [] :
+        qstr = [dict(AD_TYPES)[a_type] for a_type in
+                adTypeList]
+        my_adreq_list = my_adreq_list.filter(adsp__adtype__in=qstr)
     # if adGenreList != []:
     #     qstr = [dict(GENRE_CHOICES)[a_genre] for a_genre in
     #             adGenreList]
-    #     qstr = adGenreList
-    #     my_adreq_list = my_adreq_list.filter(adsp__genre__in=qstr)
+        # print([dict(GENRE_CHOICES)[a_genre] for a_genre in print(a_genre))
+        # qstr = adGenreList
+        # my_adreq_list = my_adreq_list.filter(adsp__genre__in=qstr)
 
     if minrate > maxrate:
         print("incorrect rates")
